@@ -1,4 +1,5 @@
 import WebSocket from 'ws';
+import axios from 'axios';
 
 export interface WLEDState {
     on?: boolean;
@@ -43,7 +44,7 @@ export class WLEDWebSocket {
 
     private host: string;
 
-    private reconnectInterval: NodeJS.Timeout | null = null;
+    private reconnectInterval: ReturnType<typeof setTimeout> | null = null;
 
     private reconnectAttempts = 0;
 
@@ -233,7 +234,6 @@ export class WLEDWebSocket {
 
 export async function loadEffectsViaHTTP(host: string): Promise<string[]> {
     // Fallback to HTTP for initial effect loading if WebSocket is not available
-    const axios = require('axios').default;
     try {
         const response = await axios.get(`http://${host}/json/eff`);
         return response.data;

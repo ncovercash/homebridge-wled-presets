@@ -130,8 +130,12 @@ export class WLED {
       this.Characteristic = this.api.hap.Characteristic;
       const uuid = this.api.hap.uuid.generate('homebridge:wled' + this.name);
 
-      if ((this.wledAccessory = this.platform.accessories.find((x: PlatformAccessory) => x.UUID === uuid)!) === undefined) {
+      const foundAccessory = this.platform.accessories.find((x: PlatformAccessory) => x.UUID === uuid);
+      if (foundAccessory === undefined) {
+          // eslint-disable-next-line new-cap
           this.wledAccessory = new this.api.platformAccessory(this.name, uuid);
+      } else {
+          this.wledAccessory = foundAccessory;
       }
 
       this.log.info('Setting up Accessory ' + this.name + ' with Host-IP: ' + this.host + ((this.multipleHosts) ? ' Multiple WLED-Hosts configured' : ' Single WLED-Host configured'));
@@ -238,30 +242,27 @@ export class WLED {
               for (let i = 1; i < this.host.length; i++) {
                   try {
                       const host = this.host[i];
-                      if (!host) {
-                          this.log.warn(`Skipping empty host at index ${i}`);
-                          continue;
+                      if (host) {
+                          const ws = new WLEDWebSocket(host);
+
+                          ws.setOnError((error: Error) => {
+                              this.log.error(`WebSocket error for ${host}: ${error.message}`);
+                          });
+
+                          ws.setOnConnect(() => {
+                              this.log.info(`WebSocket connected to ${host}`);
+                          });
+
+                          ws.setOnDisconnect(() => {
+                              this.log.warn(`WebSocket disconnected from ${host}`);
+                          });
+
+                          this.websockets.set(host, ws);
+                          ws.connect().catch(error => {
+                              const errorMessage = error instanceof Error ? error.message : String(error);
+                              this.log.error(`Failed to connect WebSocket to ${host}: ${errorMessage}`);
+                          });
                       }
-
-                      const ws = new WLEDWebSocket(host);
-
-                      ws.setOnError((error: Error) => {
-                          this.log.error(`WebSocket error for ${host}: ${error.message}`);
-                      });
-
-                      ws.setOnConnect(() => {
-                          this.log.info(`WebSocket connected to ${host}`);
-                      });
-
-                      ws.setOnDisconnect(() => {
-                          this.log.warn(`WebSocket disconnected from ${host}`);
-                      });
-
-                      this.websockets.set(host, ws);
-                      ws.connect().catch(error => {
-                          const errorMessage = error instanceof Error ? error.message : String(error);
-                          this.log.error(`Failed to connect WebSocket to ${host}: ${errorMessage}`);
-                      });
                   } catch (error) {
                       const errorMessage = error instanceof Error ? error.message : String(error);
                       this.log.error(`Error setting up WebSocket for host at index ${i}: ${errorMessage}`);
@@ -277,7 +278,8 @@ export class WLED {
   private handleStateUpdate(data: WLEDResponse, sourceHost: string): void {
       try {
           const state = data.state;
-          const info = data.info;
+
+          // Const info = data.info; // Unused for now
 
           // Update cached values
           if (state.on !== undefined) {
@@ -460,6 +462,7 @@ export class WLED {
   registerCharacteristicHue(): void {
       this.lightService.getCharacteristic(this.hap.Characteristic.Hue)
           .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+              // eslint-disable-next-line new-cap
               const colorArray = HSVtoRGB(this.hue, this.saturation);
               this.colorArray = colorArray;
               if (this.debug) {
@@ -472,6 +475,7 @@ export class WLED {
               this.userInitiatedColorChange = true;
               this.hue = value as number;
               this.turnOffAllEffects();
+              // eslint-disable-next-line new-cap
               const colorArray = HSVtoRGB(this.hue, this.saturation);
 
               this.sendToAllHosts({
@@ -511,6 +515,7 @@ export class WLED {
               this.turnOffAllEffects();
 
               // Update color with new saturation
+              // eslint-disable-next-line new-cap
               const colorArray = HSVtoRGB(this.hue, this.saturation);
               this.sendToAllHosts({
                   bri: this.brightness,
@@ -532,7 +537,7 @@ export class WLED {
   registerCharacteristicEffectsActive(): void {
       this.effectsService.getCharacteristic(this.Characteristic.Active)
           .on(CharacteristicEventTypes.SET, (newValue: any, callback: any) => {
-              if (newValue == 0) {
+              if (newValue === 0) {
                   if (this.turnOffWledWithEffect) {
                       this.turnOffWLED();
                   } else {
@@ -558,7 +563,7 @@ export class WLED {
       this.effectsService.getCharacteristic(this.Characteristic.ActiveIdentifier)
           .on(CharacteristicEventTypes.SET, (newValue: CharacteristicValue, callback: CharacteristicSetCallback) => {
               if (this.effectsAreActive) {
-                  const effectID = this.effects[parseInt(newValue.toString())];
+                  const effectID = this.effects[parseInt(newValue.toString(), 10)];
                   this.sendToAllHosts({
                       seg: [{
                           fx: effectID,
@@ -569,7 +574,7 @@ export class WLED {
                       this.log('Turned on ' + newValue + ' effect!');
                   }
 
-                  this.lastPlayedEffect = parseInt(newValue.toString());
+                  this.lastPlayedEffect = parseInt(newValue.toString(), 10);
               }
 
               callback(null);
@@ -579,7 +584,7 @@ export class WLED {
   registerCharacteristicPresetsActive(): void {
       this.presetsService.getCharacteristic(this.Characteristic.Active)
           .on(CharacteristicEventTypes.SET, (newValue: any, callback: any) => {
-              if (newValue == 0) {
+              if (newValue === 0) {
                   this.turnOffAllPresets();
                   this.presetsAreActive = false;
               } else {
@@ -597,7 +602,7 @@ export class WLED {
       this.presetsService.getCharacteristic(this.Characteristic.ActiveIdentifier)
           .on(CharacteristicEventTypes.SET, (newValue: CharacteristicValue, callback: CharacteristicSetCallback) => {
               if (this.presetsAreActive) {
-                  const presetID = this.presets[parseInt(newValue.toString())];
+                  const presetID = this.presets[parseInt(newValue.toString(), 10)];
                   this.sendToAllHosts({
                       ps: presetID + 1
                   });
@@ -605,7 +610,7 @@ export class WLED {
                       this.log('Switched to ' + newValue + ' preset!');
                   }
 
-                  this.lastPlayedPreset = parseInt(newValue.toString());
+                  this.lastPlayedPreset = parseInt(newValue.toString(), 10);
               }
 
               callback(null);
@@ -649,12 +654,12 @@ export class WLED {
   }
 
   wsSetBrightness(): void {
-      if (this.brightness == 0) {
+      if (this.brightness === 0) {
           this.turnOffWLED();
           return;
       }
 
-      const colorArray = HSVtoRGB(this.hue, this.saturation);
+      const colorArray = HSVtoRGB(this.hue, this.saturation); // eslint-disable-line new-cap
       this.colorArray = colorArray;
       if (this.debug) {
           this.log('COLOR ARRAY BRIGHTNESS: ' + colorArray);
@@ -696,7 +701,7 @@ export class WLED {
   }
 
   turnOffAllEffects(): void {
-      const colorArray = HSVtoRGB(this.hue, this.saturation);
+      const colorArray = HSVtoRGB(this.hue, this.saturation); // eslint-disable-line new-cap
       this.sendToAllHosts({
           seg: [{
               fx: 0,
@@ -729,7 +734,7 @@ export class WLED {
   getEffectIdByName(name: string): number {
       const allEffects = this.getAllEffects();
       const effectNr = allEffects.indexOf(name);
-      
+
       if (effectNr >= 0) {
           return effectNr;
       }
@@ -737,9 +742,9 @@ export class WLED {
       // Effect not found in device's supported effects
       // Log a warning but still try to use it (might be a newer/older version or custom effect)
       this.log.warn(`Effect "${name}" not found in WLED device's supported effects list. ` +
-          `This might be a custom effect or from a different WLED version. ` +
+          'This might be a custom effect or from a different WLED version. ' +
           `Available effects: ${allEffects.length > 0 ? allEffects.slice(0, 10).join(', ') + (allEffects.length > 10 ? '...' : '') : 'none loaded'}. ` +
-          `Falling back to "Rainbow Runner".`);
+          'Falling back to \'Rainbow Runner\'.');
 
       // Try to find Rainbow Runner as fallback
       const fallbackIndex = allEffects.indexOf('Rainbow Runner');
@@ -773,7 +778,7 @@ export class WLED {
       }
 
       if (this.presetsService) {
-          if (this.preset == -1) {
+          if (this.preset === -1) {
               this.presetsService.updateCharacteristic(this.Characteristic.Active, false);
           } else {
               this.presetsService.updateCharacteristic(this.Characteristic.Active, true);
@@ -790,7 +795,7 @@ export class WLED {
   }
 
   saveColorArrayAsHSV(colorArray: number[]): void {
-      const hsvArray = RGBtoHSV(colorArray[0], colorArray[1], colorArray[2]);
+      const hsvArray = RGBtoHSV(colorArray[0], colorArray[1], colorArray[2]); // eslint-disable-line new-cap
 
       // Only update hue and saturation if this is not a user-initiated change
       // This prevents the color picker from "jumping" when low saturation colors are selected

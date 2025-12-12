@@ -4,7 +4,8 @@
 module.exports = {
     "env": {
         "browser": true,
-        "es2021": true
+        "es2021": true,
+        "node": true
     },
     "extends": './configs/recommended.cjs',
     "overrides": [
@@ -17,6 +18,19 @@ module.exports = {
             ],
             "parserOptions": {
                 "sourceType": "script"
+            }
+        },
+        {
+            "env": {
+                "jest": true,
+                "node": true
+            },
+            "files": [
+                "**/__tests__/**/*.ts",
+                "**/*.test.ts"
+            ],
+            "rules": {
+                "new-cap": "off"
             }
         }
     ],

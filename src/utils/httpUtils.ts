@@ -1,7 +1,7 @@
-const axios = require('axios').default;
+import axios from 'axios';
 
 export function httpSendData(url: string, method: string, data: object, callback: Function): void {
-    if (method.toLowerCase() == 'post') {
+    if (method.toLowerCase() === 'post') {
         axios.post(String(url), data)
             .then(function(response: any) {
                 callback(null, response);
@@ -9,7 +9,7 @@ export function httpSendData(url: string, method: string, data: object, callback
             .catch(function(error: any) {
                 callback(error, null);
             });
-    } else if (method.toLowerCase() == 'get') {
+    } else if (method.toLowerCase() === 'get') {
         axios.get(url)
             .then(function(response: any) {
                 callback(null, response);
@@ -21,7 +21,7 @@ export function httpSendData(url: string, method: string, data: object, callback
 }
 
 export async function loadEffects(hosts: any): Promise<string[]> {
-    return await new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
         let host: string;
         if (hosts instanceof Array) {
             host = hosts[0];
@@ -30,10 +30,12 @@ export async function loadEffects(hosts: any): Promise<string[]> {
         }
 
         httpSendData(`http://${host}/json/effects`, 'GET', {}, (error: any, response: any) => {
-            if (error || response == null) {
-                reject(`Error while loading all effects on ${host}`); return;
+            if (error || response === null) {
+                reject(new Error(`Error while loading all effects on ${host}`));
+                return;
             }
 
+            // eslint-disable-next-line no-console
             console.log(`Loaded all effects for ${host}`);
             resolve(response.data);
         });
