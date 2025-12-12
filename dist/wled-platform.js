@@ -57,32 +57,33 @@ class WLEDPlatform {
             try {
                 if (!wled || !wled.host) {
                     this.log.warn('Skipping WLED configuration: No host or IP address configured.');
-                    continue;
                 }
-                // Determine primary host for effect loading
-                const primaryHost = Array.isArray(wled.host) ? wled.host[0] : wled.host;
-                (0, wsUtils_1.loadEffectsViaHTTP)(primaryHost)
-                    .then(effects => {
-                    try {
-                        this.wleds.push(new wled_accessory_1.WLED(this, wled, effects));
-                    }
-                    catch (error) {
+                else {
+                    // Determine primary host for effect loading
+                    const primaryHost = Array.isArray(wled.host) ? wled.host[0] : wled.host;
+                    (0, wsUtils_1.loadEffectsViaHTTP)(primaryHost)
+                        .then(effects => {
+                        try {
+                            this.wleds.push(new wled_accessory_1.WLED(this, wled, effects));
+                        }
+                        catch (error) {
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            this.log.error(`Failed to create WLED instance for ${primaryHost}: ${errorMessage}`);
+                        }
+                    })
+                        .catch(error => {
                         const errorMessage = error instanceof Error ? error.message : String(error);
-                        this.log.error(`Failed to create WLED instance for ${primaryHost}: ${errorMessage}`);
-                    }
-                })
-                    .catch(error => {
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    this.log.error(`Error loading effects for ${primaryHost}: ${errorMessage}`);
-                    // Still create WLED instance with empty effects array as fallback
-                    try {
-                        this.wleds.push(new wled_accessory_1.WLED(this, wled, []));
-                    }
-                    catch (createError) {
-                        const createErrorMessage = createError instanceof Error ? createError.message : String(createError);
-                        this.log.error(`Failed to create WLED instance with fallback for ${primaryHost}: ${createErrorMessage}`);
-                    }
-                });
+                        this.log.error(`Error loading effects for ${primaryHost}: ${errorMessage}`);
+                        // Still create WLED instance with empty effects array as fallback
+                        try {
+                            this.wleds.push(new wled_accessory_1.WLED(this, wled, []));
+                        }
+                        catch (createError) {
+                            const createErrorMessage = createError instanceof Error ? createError.message : String(createError);
+                            this.log.error(`Failed to create WLED instance with fallback for ${primaryHost}: ${createErrorMessage}`);
+                        }
+                    });
+                }
             }
             catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);

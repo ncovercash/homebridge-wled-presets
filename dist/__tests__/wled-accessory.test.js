@@ -117,7 +117,7 @@ describe('WLED Accessory', () => {
             updateCharacteristic: jest.fn(),
             addLinkedService: jest.fn()
         };
-        mockAccessory.addService.mockImplementation((serviceType, name, subtype) => {
+        mockAccessory.addService.mockImplementation((serviceType, name) => {
             if (serviceType === 'Television') {
                 if (name === 'Effects') {
                     return mockEffectsService;
@@ -193,7 +193,7 @@ describe('WLED Accessory', () => {
         });
         it('should save color array as HSV correctly', () => {
             const rgbColor = [255, 0, 0];
-            wledAccessory['saveColorArrayAsHSV'](rgbColor);
+            wledAccessory.saveColorArrayAsHSV(rgbColor);
             expect(colorUtils_1.RGBtoHSV).toHaveBeenCalledWith(255, 0, 0);
         });
         it('should compare color arrays correctly', () => {
@@ -212,17 +212,17 @@ describe('WLED Accessory', () => {
     describe('Brightness handling', () => {
         it('should convert brightness to percent correctly', () => {
             wledAccessory['brightness'] = 128;
-            const percent = wledAccessory['currentBrightnessToPercent']();
+            const percent = wledAccessory.currentBrightnessToPercent();
             expect(percent).toBe(50); // 128/255 * 100 = 50.19... rounded to 50
         });
         it('should handle zero brightness', () => {
             wledAccessory['brightness'] = 0;
-            const percent = wledAccessory['currentBrightnessToPercent']();
+            const percent = wledAccessory.currentBrightnessToPercent();
             expect(percent).toBe(0);
         });
         it('should handle negative brightness', () => {
             wledAccessory['brightness'] = -1;
-            const percent = wledAccessory['currentBrightnessToPercent']();
+            const percent = wledAccessory.currentBrightnessToPercent();
             expect(percent).toBe(0);
         });
     });
@@ -319,16 +319,16 @@ describe('WLED Accessory', () => {
     });
     describe('WebSocket communication', () => {
         it('should send turn on command', () => {
-            wledAccessory.turnOnWLED();
+            wledAccessory['turnOnWLED']();
             expect(mockWebSocket.send).toHaveBeenCalledWith({ on: true });
         });
         it('should send turn off command', () => {
-            wledAccessory.turnOffWLED();
+            wledAccessory['turnOffWLED']();
             expect(mockWebSocket.send).toHaveBeenCalledWith({ on: false });
         });
         it('should send brightness update', () => {
             wledAccessory['brightness'] = 128;
-            wledAccessory['wsSetBrightness']();
+            wledAccessory.wsSetBrightness();
             expect(mockWebSocket.send).toHaveBeenCalled();
         });
         it('should send color update', () => {
@@ -336,7 +336,7 @@ describe('WLED Accessory', () => {
             wledAccessory['saturation'] = 100;
             wledAccessory['brightness'] = 255;
             // Directly call the method that sends color update
-            wledAccessory['registerCharacteristicHue']();
+            wledAccessory.registerCharacteristicHue();
             // Find the SET handler for Hue characteristic
             const hueCharacteristic = mockLightService.getCharacteristic.mock.results
                 .find((r) => r.value)?.value;
@@ -378,7 +378,7 @@ describe('WLED Accessory', () => {
             wledAccessory['hue'] = 0;
             wledAccessory['saturation'] = 100;
             wledAccessory['brightness'] = 255;
-            wledAccessory['turnOffAllEffects']();
+            wledAccessory.turnOffAllEffects();
             expect(mockWebSocket.send).toHaveBeenCalled();
         });
     });

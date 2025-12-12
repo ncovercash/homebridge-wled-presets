@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.WLEDWebSocket = void 0;
 exports.loadEffectsViaHTTP = loadEffectsViaHTTP;
 const ws_1 = __importDefault(require("ws"));
+const axios_1 = __importDefault(require("axios"));
 class WLEDWebSocket {
     ws = null;
     host;
@@ -174,9 +175,8 @@ class WLEDWebSocket {
 exports.WLEDWebSocket = WLEDWebSocket;
 async function loadEffectsViaHTTP(host) {
     // Fallback to HTTP for initial effect loading if WebSocket is not available
-    const axios = require('axios').default;
     try {
-        const response = await axios.get(`http://${host}/json/eff`);
+        const response = await axios_1.default.get(`http://${host}/json/eff`);
         return response.data;
     }
     catch (error) {

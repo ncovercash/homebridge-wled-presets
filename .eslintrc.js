@@ -30,7 +30,8 @@ module.exports = {
                 "**/*.test.ts"
             ],
             "rules": {
-                "new-cap": "off"
+                "new-cap": "off",
+                "dot-notation": "off"
             }
         }
     ],
