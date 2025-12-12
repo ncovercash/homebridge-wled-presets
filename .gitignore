@@ -12,3 +12,5 @@ coverage/
 
 # GitHub Actions artifacts
 .github/workflows/*.log
+
+dist/
