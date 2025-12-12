@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.loadEffects = exports.httpSendData = void 0;
+exports.httpSendData = httpSendData;
+exports.loadEffects = loadEffects;
 const axios = require('axios').default;
 function httpSendData(url, method, data, callback) {
-    if (method.toLowerCase() == "post") {
+    if (method.toLowerCase() == 'post') {
         axios.post(String(url), data)
             .then(function (response) {
             callback(null, response);
@@ -12,7 +13,7 @@ function httpSendData(url, method, data, callback) {
             callback(error, null);
         });
     }
-    else if (method.toLowerCase() == "get") {
+    else if (method.toLowerCase() == 'get') {
         axios.get(url)
             .then(function (response) {
             callback(null, response);
@@ -22,9 +23,8 @@ function httpSendData(url, method, data, callback) {
         });
     }
 }
-exports.httpSendData = httpSendData;
 async function loadEffects(hosts) {
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
         let host;
         if (hosts instanceof Array) {
             host = hosts[0];
@@ -32,15 +32,14 @@ async function loadEffects(hosts) {
         else {
             host = hosts;
         }
-        httpSendData(`http://${host}/json/effects`, "GET", {}, (error, response) => {
+        httpSendData(`http://${host}/json/effects`, 'GET', {}, (error, response) => {
             if (error || response == null) {
-                return reject(`Error while loading all effects on ${host}`);
+                reject(`Error while loading all effects on ${host}`);
+                return;
             }
-            ;
             console.log(`Loaded all effects for ${host}`);
             resolve(response.data);
         });
     });
 }
-exports.loadEffects = loadEffects;
-//# sourceMappingURL=utils.js.map
+//# sourceMappingURL=httpUtils.js.map

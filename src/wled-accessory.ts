@@ -11,9 +11,8 @@ import {
 } from 'homebridge';
 import {PLUGIN_NAME} from './settings';
 import {type WLEDPlatform} from './wled-platform';
-import {httpSendData} from './utils/httpUtils';
-
-const polling = require('polling-to-event');
+import {WLEDWebSocket, type WLEDResponse} from './utils/wsUtils';
+import {HSVtoRGB, RGBtoHSV} from './utils/colorUtils';
 
 export class WLED {
   private readonly log: Logging;
@@ -49,8 +48,6 @@ export class WLED {
 
   /*       END LOGGING / DEBUGGING      */
 
-  private readonly effectId = 33;
-
   private readonly multipleHosts: boolean;
 
   private readonly disableEffectSwitch: boolean;
@@ -62,6 +59,11 @@ export class WLED {
   private readonly showEffectControl: boolean;
 
   private readonly ambilightSwitch: boolean;
+
+  /*  WEBSOCKET CONNECTIONS */
+  private readonly websockets: Map<string, WLEDWebSocket> = new Map();
+
+  private primaryWebSocket: WLEDWebSocket | null = null;
 
   /*  LOCAL CACHING VARIABLES */
 
@@ -96,6 +98,8 @@ export class WLED {
   private readonly presets: number[] = [];
 
   private lastPlayedPreset: number = 0;
+
+  private userInitiatedColorChange = false;
 
   /*  END LOCAL CACHING VARIABLES */
 
@@ -182,7 +186,183 @@ export class WLED {
       this.api.updatePlatformAccessories([this.wledAccessory]);
       this.log.info('WLED Strip finished initializing!');
 
-      this.startPolling(this.host[0]);
+      this.connectWebSockets();
+  }
+
+  private connectWebSockets(): void {
+      try {
+          // Connect to primary host first
+          const primaryHost = this.host[0];
+          if (!primaryHost) {
+              this.log.error('No primary host configured for WebSocket connection');
+              return;
+          }
+
+          this.primaryWebSocket = new WLEDWebSocket(primaryHost);
+
+          this.primaryWebSocket.setOnStateUpdate((data: WLEDResponse) => {
+              this.handleStateUpdate(data, primaryHost);
+          });
+
+          this.primaryWebSocket.setOnError((error: Error) => {
+              this.log.error(`WebSocket error for ${primaryHost}: ${error.message}`);
+              this.isOffline = true;
+          });
+
+          this.primaryWebSocket.setOnConnect(() => {
+              try {
+                  this.log.info(`WebSocket connected to ${primaryHost}`);
+                  this.isOffline = false;
+
+                  // Request initial state
+                  this.primaryWebSocket?.requestState();
+              } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  this.log.error(`Error in WebSocket connect callback for ${primaryHost}: ${errorMessage}`);
+              }
+          });
+
+          this.primaryWebSocket.setOnDisconnect(() => {
+              this.log.warn(`WebSocket disconnected from ${primaryHost}`);
+              this.isOffline = true;
+          });
+
+          this.websockets.set(primaryHost, this.primaryWebSocket);
+          this.primaryWebSocket.connect().catch(error => {
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              this.log.error(`Failed to connect WebSocket to ${primaryHost}: ${errorMessage}`);
+          });
+
+          // Connect to additional hosts if multiple hosts configured
+          if (this.multipleHosts && this.host.length > 1) {
+              for (let i = 1; i < this.host.length; i++) {
+                  try {
+                      const host = this.host[i];
+                      if (!host) {
+                          this.log.warn(`Skipping empty host at index ${i}`);
+                          continue;
+                      }
+
+                      const ws = new WLEDWebSocket(host);
+
+                      ws.setOnError((error: Error) => {
+                          this.log.error(`WebSocket error for ${host}: ${error.message}`);
+                      });
+
+                      ws.setOnConnect(() => {
+                          this.log.info(`WebSocket connected to ${host}`);
+                      });
+
+                      ws.setOnDisconnect(() => {
+                          this.log.warn(`WebSocket disconnected from ${host}`);
+                      });
+
+                      this.websockets.set(host, ws);
+                      ws.connect().catch(error => {
+                          const errorMessage = error instanceof Error ? error.message : String(error);
+                          this.log.error(`Failed to connect WebSocket to ${host}: ${errorMessage}`);
+                      });
+                  } catch (error) {
+                      const errorMessage = error instanceof Error ? error.message : String(error);
+                      this.log.error(`Error setting up WebSocket for host at index ${i}: ${errorMessage}`);
+                  }
+              }
+          }
+      } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          this.log.error(`Error in connectWebSockets: ${errorMessage}`);
+      }
+  }
+
+  private handleStateUpdate(data: WLEDResponse, sourceHost: string): void {
+      try {
+          const state = data.state;
+          const info = data.info;
+
+          // Update cached values
+          if (state.on !== undefined) {
+              this.lightOn = state.on;
+          }
+
+          if (state.bri !== undefined && state.bri > 0) {
+              this.brightness = state.bri;
+          }
+
+          // Update color from first segment
+          // Only update if not a user-initiated change to prevent color picker from jumping
+          if (!this.userInitiatedColorChange && state.seg && state.seg.length > 0 && state.seg[0].col && state.seg[0].col.length > 0) {
+              const colorResponse = state.seg[0].col[0];
+              const rgbColor = [colorResponse[0], colorResponse[1], colorResponse[2]];
+
+              if (!this.colorArraysEqual(rgbColor, this.colorArray)) {
+                  this.saveColorArrayAsHSV(rgbColor);
+                  this.colorArray = rgbColor;
+              }
+          }
+
+          // Update preset
+          if (state.ps !== undefined) {
+              this.preset = state.ps;
+          }
+
+          // Update ambilight state
+          if (state.lor !== undefined) {
+              this.ambilightOn = !state.lor;
+          }
+
+          // Update effect speed if available
+          if (state.seg && state.seg.length > 0 && state.seg[0].sx !== undefined) {
+              this.effectSpeed = state.seg[0].sx;
+          }
+
+          // Sync to other hosts if multiple hosts configured
+          if (this.multipleHosts && sourceHost === this.host[0]) {
+              this.syncToOtherHosts(state);
+          }
+
+          // Update HomeKit characteristics
+          this.updateLight();
+      } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          this.log.error(`Error handling state update from ${sourceHost}: ${errorMessage}`);
+      }
+  }
+
+  private syncToOtherHosts(state: any): void {
+      try {
+          // Only sync if this update came from the primary host
+          for (let i = 1; i < this.host.length; i++) {
+              const host = this.host[i];
+              const ws = this.websockets.get(host);
+              if (ws && ws.getConnected()) {
+                  // Send state update to other hosts
+                  ws.send(state);
+              }
+          }
+      } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          this.log.error(`Error syncing to other hosts: ${errorMessage}`);
+      }
+  }
+
+  private sendToAllHosts(data: any): void {
+      try {
+          this.websockets.forEach((ws, host) => {
+              try {
+                  if (ws.getConnected()) {
+                      ws.send(data);
+                  } else {
+                      this.log.warn(`WebSocket not connected to ${host}, skipping update`);
+                  }
+              } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  this.log.error(`Error sending to ${host}: ${errorMessage}`);
+              }
+          });
+      } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          this.log.error(`Error in sendToAllHosts: ${errorMessage}`);
+      }
   }
 
   registerCharacteristicOnOff(): void {
@@ -249,7 +429,7 @@ export class WLED {
           })
           .on(CharacteristicEventTypes.SET, (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
               this.brightness = Math.round(255 / 100 * (value as number));
-              this.httpSetBrightness();
+              this.wsSetBrightness();
 
               if (this.prodLogging) {
                   this.log('Set brightness to ' + value + '% ' + this.brightness);
@@ -280,7 +460,7 @@ export class WLED {
   registerCharacteristicHue(): void {
       this.lightService.getCharacteristic(this.hap.Characteristic.Hue)
           .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
-              const colorArray = this.HSVtoRGB(this.hue, this.saturation);
+              const colorArray = HSVtoRGB(this.hue, this.saturation);
               this.colorArray = colorArray;
               if (this.debug) {
                   this.log('Current hue: ' + this.hue + '%');
@@ -289,21 +469,28 @@ export class WLED {
               callback(undefined, this.hue);
           })
           .on(CharacteristicEventTypes.SET, (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
+              this.userInitiatedColorChange = true;
               this.hue = value as number;
               this.turnOffAllEffects();
-              const colorArray = this.HSVtoRGB(this.hue, this.saturation);
+              const colorArray = HSVtoRGB(this.hue, this.saturation);
 
-              this.host.forEach(host => {
-                  httpSendData(`http://${host}/json`, 'POST', {bri: this.brightness, seg: [{col: [colorArray]}]}, (error: any, response: any) => {
-                      if (error) {
-                          this.log('Error while changing color of WLED ' + this.name + ' (' + host + ')');
-                      }
-                  });
-                  if (this.prodLogging) {
-                      this.log('Changed color to ' + colorArray + ' on host ' + host);
-                  }
+              this.sendToAllHosts({
+                  bri: this.brightness,
+                  seg: [{
+                      col: [[colorArray[0], colorArray[1], colorArray[2], 0]]
+                  }]
               });
+
+              if (this.prodLogging) {
+                  this.log('Changed color to ' + colorArray + ' on all hosts');
+              }
+
               this.colorArray = colorArray;
+
+              // Reset flag after a short delay to allow state update to be processed
+              setTimeout(() => {
+                  this.userInitiatedColorChange = false;
+              }, 500);
 
               callback();
           });
@@ -319,8 +506,25 @@ export class WLED {
               callback(undefined, this.saturation);
           })
           .on(CharacteristicEventTypes.SET, (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
+              this.userInitiatedColorChange = true;
               this.saturation = value as number;
               this.turnOffAllEffects();
+
+              // Update color with new saturation
+              const colorArray = HSVtoRGB(this.hue, this.saturation);
+              this.sendToAllHosts({
+                  bri: this.brightness,
+                  seg: [{
+                      col: [[colorArray[0], colorArray[1], colorArray[2], 0]]
+                  }]
+              });
+              this.colorArray = colorArray;
+
+              // Reset flag after a short delay to allow state update to be processed
+              setTimeout(() => {
+                  this.userInitiatedColorChange = false;
+              }, 500);
+
               callback();
           });
   }
@@ -355,10 +559,11 @@ export class WLED {
           .on(CharacteristicEventTypes.SET, (newValue: CharacteristicValue, callback: CharacteristicSetCallback) => {
               if (this.effectsAreActive) {
                   const effectID = this.effects[parseInt(newValue.toString())];
-                  this.host.forEach(host => {
-                      httpSendData(`http://${host}/json`, 'POST', {seg: [{fx: effectID, sx: this.effectSpeed}]}, (error: any, resp: any) => {
-                          if (error) {}
-                      });
+                  this.sendToAllHosts({
+                      seg: [{
+                          fx: effectID,
+                          sx: this.effectSpeed
+                      }]
                   });
                   if (this.prodLogging) {
                       this.log('Turned on ' + newValue + ' effect!');
@@ -393,10 +598,8 @@ export class WLED {
           .on(CharacteristicEventTypes.SET, (newValue: CharacteristicValue, callback: CharacteristicSetCallback) => {
               if (this.presetsAreActive) {
                   const presetID = this.presets[parseInt(newValue.toString())];
-                  this.host.forEach(host => {
-                      httpSendData(`http://${host}/json`, 'POST', {ps: presetID + 1}, (error: any, resp: any) => {
-                          if (error) {}
-                      });
+                  this.sendToAllHosts({
+                      ps: presetID + 1
                   });
                   if (this.prodLogging) {
                       this.log('Switched to ' + newValue + ' preset!');
@@ -417,7 +620,7 @@ export class WLED {
       effects.forEach((effectName: string, i: number) => {
           const effectID = this.getEffectIdByName(effectName);
           this.effects.push(effectID);
-          const effectInputSource = this.wledAccessory.addService(this.hap.Service.InputSource, effectID, effectName);
+          const effectInputSource = this.wledAccessory.addService(this.hap.Service.InputSource, String(effectID), effectName);
           effectInputSource
               .setCharacteristic(this.Characteristic.Identifier, i)
               .setCharacteristic(this.Characteristic.ConfiguredName, effectName)
@@ -435,7 +638,7 @@ export class WLED {
       presets.forEach((presetName: string, i: number) => {
           const presetID = i;
           this.presets.push(presetID);
-          const presetInputSource = this.wledAccessory.addService(this.hap.Service.InputSource, presetID, presetName);
+          const presetInputSource = this.wledAccessory.addService(this.hap.Service.InputSource, String(presetID), presetName);
           presetInputSource
               .setCharacteristic(this.Characteristic.Identifier, presetID)
               .setCharacteristic(this.Characteristic.ConfiguredName, presetName)
@@ -445,68 +648,61 @@ export class WLED {
       });
   }
 
-  httpSetBrightness() {
+  wsSetBrightness(): void {
       if (this.brightness == 0) {
           this.turnOffWLED();
           return;
       }
 
-      const colorArray = this.HSVtoRGB(this.hue, this.saturation);
+      const colorArray = HSVtoRGB(this.hue, this.saturation);
       this.colorArray = colorArray;
       if (this.debug) {
           this.log('COLOR ARRAY BRIGHTNESS: ' + colorArray);
       }
 
-      this.host.forEach(host => {
-          httpSendData(`http://${host}/json`, 'POST', {bri: this.brightness}, (error: any, response: any) => {
-              if (error) {}
-          });
+      this.sendToAllHosts({
+          bri: this.brightness
       });
   }
 
   turnOffWLED(): void {
-      this.host.forEach(host => {
-          httpSendData(`http://${host}/win&T=0`, 'GET', {}, (error: any, response: any) => {
-              if (error) {}
-          });
+      this.sendToAllHosts({
+          on: false
       });
       this.lightOn = false;
   }
 
   turnOnWLED(): void {
-      this.host.forEach(host => {
-          httpSendData(`http://${host}/win&T=1`, 'GET', {}, (error: any, response: any) => {
-              if (error) {}
-          });
+      this.sendToAllHosts({
+          on: true
       });
       this.lightService.updateCharacteristic(this.hap.Characteristic.Brightness, 100);
       this.lightOn = true;
   }
 
   turnOffAmbilight(): void {
-      this.host.forEach(host => {
-          httpSendData(`http://${host}/win&LO=1`, 'GET', {}, (error: any, response: any) => {
-              if (error) {}
-          });
+      this.sendToAllHosts({
+          lor: 1
       });
       this.ambilightOn = false;
   }
 
   turnOnAmbilight(): void {
-      this.host.forEach(host => {
-          httpSendData(`http://${host}/win&LO=0`, 'GET', {}, (error: any, response: any) => {
-              if (error) {}
-          });
+      this.sendToAllHosts({
+          lor: 0
       });
       this.lightService.updateCharacteristic(this.hap.Characteristic.Brightness, 100);
       this.ambilightOn = true;
   }
 
   turnOffAllEffects(): void {
-      this.host.forEach(host => {
-          httpSendData(`http://${host}/json`, 'POST', {seg: [{fx: 0, sx: 0, col: this.colorArray}]}, (error: any, response: any) => {
-              if (error) {}
-          });
+      const colorArray = HSVtoRGB(this.hue, this.saturation);
+      this.sendToAllHosts({
+          seg: [{
+              fx: 0,
+              sx: 0,
+              col: [[colorArray[0], colorArray[1], colorArray[2], 0]]
+          }]
       });
       if (!this.disableEffectSwitch) {
           this.effectsService.updateCharacteristic(this.Characteristic.Active, 0);
@@ -518,10 +714,8 @@ export class WLED {
   }
 
   turnOffAllPresets(): void {
-      this.host.forEach(host => {
-          httpSendData(`http://${host}/json`, 'POST', {ps: -1}, (error: any, resp: any) => {
-              if (error) {}
-          });
+      this.sendToAllHosts({
+          ps: -1
       });
       if (!this.disableEffectSwitch) {
           this.effectsService.updateCharacteristic(this.Characteristic.Active, 0);
@@ -533,16 +727,35 @@ export class WLED {
   }
 
   getEffectIdByName(name: string): number {
-      const effectNr = this.getAllEffects().indexOf(name);
+      const allEffects = this.getAllEffects();
+      const effectNr = allEffects.indexOf(name);
+      
       if (effectNr >= 0) {
           return effectNr;
       }
 
-      if (this.debug) {
-          this.log('Effect ' + name + ' not found! Displaying Rainbow Runner');
+      // Effect not found in device's supported effects
+      // Log a warning but still try to use it (might be a newer/older version or custom effect)
+      this.log.warn(`Effect "${name}" not found in WLED device's supported effects list. ` +
+          `This might be a custom effect or from a different WLED version. ` +
+          `Available effects: ${allEffects.length > 0 ? allEffects.slice(0, 10).join(', ') + (allEffects.length > 10 ? '...' : '') : 'none loaded'}. ` +
+          `Falling back to "Rainbow Runner".`);
+
+      // Try to find Rainbow Runner as fallback
+      const fallbackIndex = allEffects.indexOf('Rainbow Runner');
+      if (fallbackIndex >= 0) {
+          return fallbackIndex;
       }
 
-      return this.getAllEffects().indexOf('Rainbow Runner');
+      // If Rainbow Runner is also not available, use first effect or 0
+      if (allEffects.length > 0) {
+          this.log.warn(`Fallback effect "Rainbow Runner" also not found. Using first available effect: "${allEffects[0]}"`);
+          return 0;
+      }
+
+      // No effects available at all
+      this.log.error('No effects available from WLED device. Cannot set effect.');
+      return 0;
   }
 
   getAllEffects(): string[] {
@@ -568,111 +781,63 @@ export class WLED {
       }
   }
 
-  startPolling(host: string): void {
-      const that = this;
-      const status = polling(function(done: any) {
-          if (!that.isOffline) {
-              httpSendData(`http://${host}/json/state`, 'GET', {}, (error: any, response: any) => {
-                  done(error, response);
-              });
-          } else {
-              that.isOffline = false;
-          }
-      }, {longpolling: true, interval: 4500, longpollEventName: 'statuspoll' + host});
+  currentBrightnessToPercent(): number {
+      if (this.brightness <= 0) {
+          return 0;
+      }
 
-      status.on('poll', function(response: any) {
-          let colorResponse = response.data.seg[0].col[0];
-          colorResponse = [colorResponse[0], colorResponse[1], colorResponse[2]];
-
-          if (that.lightOn && response.data.on && (
-              that.brightness != response.data.bri ||
-        !that.colorArraysEqual(colorResponse, that.colorArray))) {
-              if (that.prodLogging) {
-                  that.log('Updating WLED in HomeKIT (Because of Polling) ' + host);
-              }
-
-              that.saveColorArrayAsHSV(colorResponse);
-              that.colorArray = colorResponse;
-
-              that.brightness = response.data.bri;
-
-              if (that.multipleHosts) {
-                  that.host.forEach(host => {
-                      httpSendData(`http://${host}/json`, 'POST', {bri: that.brightness, seg: [{col: [colorResponse]}]}, (error: any, response: any) => {
-                          if (error) {
-                              that.log('Error while polling WLED (brightness) ' + that.name + ' (' + that.host + ')');
-                          }
-                      });
-                      if (that.prodLogging) {
-                          that.log('Changed color to ' + colorResponse + ' on host ' + host);
-                      }
-                  });
-              }
-
-              that.updateLight();
-          } else {
-              that.lightOn = response.data.on;
-              that.updateLight();
-          }
-
-          if (that.ambilightOn && response.data.lor) {
-              that.ambilightOn = !response.data.lor;
-
-              if (that.prodLogging) {
-                  that.log('Updating WLED in HomeKIT (Because of Polling) ' + host);
-              }
-
-              if (that.multipleHosts) {
-                  that.host.forEach(host => {
-                      httpSendData(`http://${host}/json`, 'POST', {lor: that.ambilightOn}, (error: any, response: any) => {
-                          if (error) {
-                              that.log('Error while polling WLED (brightness) ' + that.name + ' (' + that.host + ')');
-                          }
-                      });
-                      if (that.prodLogging) {
-                          that.log('Changed color to ' + colorResponse + ' on host ' + host);
-                      }
-                  });
-              }
-
-              that.updateLight();
-          } else {
-              that.ambilightOn = !response.data.lor;
-              that.updateLight();
-          }
-
-          that.preset = response.data.ps;
-          that.updateLight();
-      });
-
-      status.on('error', function(error: any, response: any) {
-          if (error) {
-              if (that.debug) {
-                  that.log(error);
-              }
-
-              that.log('Error while polling WLED ' + that.name + ' (' + that.host + ')');
-              that.isOffline = true;
-          }
-      });
-  }
-
-  currentBrightnessToPercent() {
-      return Math.round(100 / 255 * this.brightness);
+      return Math.round((this.brightness / 255) * 100);
   }
 
   saveColorArrayAsHSV(colorArray: number[]): void {
-      const hsvArray = this.RGBtoHSV(colorArray[0], colorArray[1], colorArray[2]);
-      this.hue = Math.floor(hsvArray[0] * 360);
-      this.saturation = Math.floor(hsvArray[1] * 100);
-      this.brightness = Math.floor(hsvArray[2] * 255);
-  }
+      const hsvArray = RGBtoHSV(colorArray[0], colorArray[1], colorArray[2]);
 
-  colorArraysEqual(a: any, b: any): boolean {
-      if (a[0] == b[0] && a[1] == b[1] && a[2] == b[2]) {
-          return true;
+      // Only update hue and saturation if this is not a user-initiated change
+      // This prevents the color picker from "jumping" when low saturation colors are selected
+      if (this.userInitiatedColorChange) {
+          // If user initiated, only update hue if it's significantly different
+          // This allows the saturation to remain as the user set it
+          const hueDiff = Math.abs(hsvArray[0] - this.hue);
+          if (hueDiff > 10) {
+              this.hue = hsvArray[0];
+          }
+
+          // Keep the saturation as the user set it, don't update from RGB conversion
+      } else {
+          this.hue = hsvArray[0];
+
+          // For saturation: only update if the difference is significant (more than 5%)
+          // This prevents small rounding errors from causing the color picker to jump
+          const saturationDiff = Math.abs(hsvArray[1] - this.saturation);
+          if (saturationDiff > 5 || this.saturation === 0 || this.saturation === 100) {
+              this.saturation = hsvArray[1];
+          }
       }
 
-      return false;
+      // Don't update brightness from color, it's managed separately
+  }
+
+  colorArraysEqual(a: number[], b: number[]): boolean {
+      if (a.length !== b.length) {
+          return false;
+      }
+
+      // Allow small differences due to rounding
+      // Use larger tolerance for colors with low saturation (pastel colors)
+      // as they are more prone to rounding errors
+      const isLowSaturation = Math.abs(a[0] - a[1]) < 30 && Math.abs(a[1] - a[2]) < 30 && Math.abs(a[0] - a[2]) < 30;
+      const tolerance = isLowSaturation ? 5 : 2;
+
+      return Math.abs(a[0] - b[0]) <= tolerance &&
+             Math.abs(a[1] - b[1]) <= tolerance &&
+             Math.abs(a[2] - b[2]) <= tolerance;
+  }
+
+  disconnect(): void {
+      this.websockets.forEach(ws => {
+          ws.disconnect();
+      });
+      this.websockets.clear();
+      this.primaryWebSocket = null;
   }
 }
