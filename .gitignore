@@ -1,6 +1,5 @@
 node_modules/
 .vscode
-package-lock.json
 homebridge-simple-wled.code-workspace
 
 # Test coverage
