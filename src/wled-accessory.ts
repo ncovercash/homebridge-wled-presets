@@ -56,6 +56,8 @@ export class WLED {
 
   private readonly turnOffWledWithEffect: boolean;
 
+  private readonly turnOffWledWithPreset: boolean;
+
   private readonly showEffectControl: boolean;
 
   private readonly ambilightSwitch: boolean;
@@ -110,6 +112,7 @@ export class WLED {
       this.disableEffectSwitch = !(wledConfig.effects);
       this.disablePresetSwitch = !(wledConfig.presets);
       this.turnOffWledWithEffect = wledConfig.turnOffWledWithEffect || false;
+      this.turnOffWledWithPreset = wledConfig.turnOffWledWithPreset || false;
       this.effectSpeed = wledConfig.defaultEffectSpeed || 15;
       this.showEffectControl = Boolean(wledConfig.showEffectControl);
       this.ambilightSwitch = Boolean(wledConfig.ambilightSwitch);
@@ -162,7 +165,7 @@ export class WLED {
 
       if (!this.disableEffectSwitch) {
       // LOAD ALL EFFECTS FROM HOST
-          this.effectsService = this.wledAccessory.addService(this.api.hap.Service.Television);
+          this.effectsService = this.wledAccessory.getServiceById(this.api.hap.Service.Television, 'Effects') || this.wledAccessory.addService(this.api.hap.Service.Television, 'Effects', 'Effects');
           this.effectsService.setCharacteristic(this.Characteristic.ConfiguredName, 'Effects');
 
           this.registerCharacteristicEffectsActive();
@@ -172,16 +175,12 @@ export class WLED {
 
       if (!this.disablePresetSwitch) {
       // LOAD ALL PRESETS FROM HOST
-          this.presetsService = this.wledAccessory.addService(this.api.hap.Service.Television);
+          this.presetsService = this.wledAccessory.getServiceById(this.api.hap.Service.Television, 'Presets') || this.wledAccessory.addService(this.api.hap.Service.Television, 'Presets', 'Presets');
           this.presetsService.setCharacteristic(this.Characteristic.ConfiguredName, 'Presets');
 
           this.registerCharacteristicPresetsActive();
           this.registerCharacteristicPresetsActiveIdentifier();
           this.addPresetsInputSources(wledConfig.presets);
-      }
-
-      if (!this.disableEffectSwitch && !this.disablePresetSwitch) {
-          this.log.error('You are Unable to have Effects and Presets Enabled at the Same Time! Please Disable one of them.');
       }
 
       this.api.publishExternalAccessories(PLUGIN_NAME, [this.wledAccessory]);
@@ -585,10 +584,16 @@ export class WLED {
       this.presetsService.getCharacteristic(this.Characteristic.Active)
           .on(CharacteristicEventTypes.SET, (newValue: any, callback: any) => {
               if (newValue === 0) {
-                  this.turnOffAllPresets();
+                  if (this.turnOffWledWithPreset) {
+                      this.turnOffWLED();
+                  } else {
+                      this.turnOffAllPresets();
+                  }
                   this.presetsAreActive = false;
               } else {
-                  this.turnOnWLED();
+                  if (this.turnOffWledWithPreset) {
+                      this.turnOnWLED();
+                  }
                   this.presetsAreActive = true;
                   this.presetsService.setCharacteristic(this.Characteristic.ActiveIdentifier, this.lastPlayedPreset);
               }

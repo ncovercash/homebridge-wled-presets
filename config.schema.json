@@ -181,6 +181,18 @@
                                 "required": false
                             }
                         },
+                        "turnOffWledWithEffect": {
+                            "title": "Turn Off WLED with Effect",
+                            "description": "Turn off WLED when the Effect switch is turned off",
+                            "type": "boolean",
+                            "required": false
+                        },
+                        "turnOffWledWithPreset": {
+                            "title": "Turn Off WLED with Preset",
+                            "description": "Turn off WLED when the Preset switch is turned off",
+                            "type": "boolean",
+                            "required": false
+                        },
                         "log": {
                             "title": "Logging",
                             "description": "Enable Logging/Debugging option",

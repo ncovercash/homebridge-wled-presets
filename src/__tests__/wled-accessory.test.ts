@@ -98,7 +98,8 @@ describe('WLED Accessory', () => {
             UUID: 'test-uuid',
             category: undefined,
             addService: jest.fn(),
-            getService: jest.fn()
+            getService: jest.fn(),
+            getServiceById: jest.fn().mockReturnValue(undefined)
         };
 
         // Mock Services
