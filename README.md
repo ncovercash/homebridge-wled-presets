@@ -168,6 +168,18 @@ Add a `presets` array with your preset names. The order must match your WLED pre
 
 To disable the Preset Switch, simply remove the `presets` option.
 
+### Preset Options
+
+**Turn off WLED when preset is turned off:**
+```json
+{
+  "name": "LED-Table",
+  "host": "192.168.1.100",
+  "presets": ["Christmas", "Halloween"],
+  "turnOffWledWithPreset": true
+}
+```
+
 ## 💡💡💡 Multiple WLED Hosts
 
 Control multiple WLED devices with a single accessory by setting `host` to an array:
