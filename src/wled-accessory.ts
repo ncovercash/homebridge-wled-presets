@@ -589,11 +589,13 @@ export class WLED {
                   } else {
                       this.turnOffAllPresets();
                   }
+
                   this.presetsAreActive = false;
               } else {
                   if (this.turnOffWledWithPreset) {
                       this.turnOnWLED();
                   }
+
                   this.presetsAreActive = true;
                   this.presetsService.setCharacteristic(this.Characteristic.ActiveIdentifier, this.lastPlayedPreset);
               }
