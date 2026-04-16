@@ -1,6 +1,5 @@
 node_modules/
 .vscode
-homebridge-simple-wled.code-workspace
 
 # Test coverage
 coverage/

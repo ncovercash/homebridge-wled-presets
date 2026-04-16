@@ -67,7 +67,7 @@ describe('WLEDPlatform', () => {
         });
 
         it('should handle empty wleds array', () => {
-            const emptyConfig = {platform: 'WLED', wleds: []};
+            const emptyConfig = {platform: 'WLED Presets', wleds: []};
             platform = new WLEDPlatform(mockLog, emptyConfig, mockApi);
 
             expect(mockLog.info).toHaveBeenCalledWith('No WLEDs have been configured. Plugin will not start until WLED devices are added in the Homebridge UI.');
@@ -127,7 +127,7 @@ describe('WLEDPlatform', () => {
 
         it('should handle missing host gracefully', async () => {
             const invalidConfig = {
-                platform: 'WLED',
+                platform: 'WLED Presets',
                 wleds: [
                     {
                         name: 'Invalid WLED'
@@ -152,7 +152,7 @@ describe('WLEDPlatform', () => {
 
         it('should handle array host configuration', async () => {
             const arrayHostConfig = {
-                platform: 'WLED',
+                platform: 'WLED Presets',
                 wleds: [
                     {
                         name: 'Multi Host WLED',
@@ -210,7 +210,7 @@ describe('WLEDPlatform', () => {
 
         it('should handle invalid wleds array', async () => {
             const invalidConfig = {
-                platform: 'WLED',
+                platform: 'WLED Presets',
                 wleds: null
             };
 
@@ -257,7 +257,7 @@ describe('WLEDPlatform', () => {
 
         it('should handle empty host string gracefully', async () => {
             const emptyHostConfig = {
-                platform: 'WLED',
+                platform: 'WLED Presets',
                 wleds: [
                     {
                         name: 'Empty Host WLED',

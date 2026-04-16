@@ -1,213 +1,43 @@
 {
-    "pluginAlias": "WLED",
-    "pluginType": "platform",
-    "singular": true,
-    "headerDisplay": "homebridge-simple-wled: Nearly complete HomeKit support for WLED. See the [Github project page](https://github.com/jstrausd/homebridge-simple-wled) for more documentation.",
-    "footerDisplay": "Configure at least one WLED device with a valid IP address to enable the plugin.",
-    "schema": {
-        "type": "object",
-        "properties": {
-            "wleds": {
-                "type": "array",
-                "title": "wleds",
-                "items": {
-                    "type": "object",
-                    "title": "WLED instance",
-                    "properties": {
-                        "name": {
-                            "title": "WLED name",
-                            "description": "Name for this WLED instance.",
-                            "type": "string",
-                            "placeholder": "Enter WLED name",
-                            "required": true
-                        },
-                        "host": {
-                            "title": "WLED IP Address",
-                            "description": "IP address for this WLED instance.",
-                            "type": "string",
-                            "format": "ipv4",
-                            "placeholder": "Enter WLED IP address",
-                            "required": true
-                        },
-                        "effects": {
-                            "title": "Effects",
-                            "description": "Effects for this WLED instance. Select from the suggestions or type a custom effect name. Effects are validated against your WLED device's supported effects at startup - unsupported effects will show a warning but can still be used (for newer/older WLED versions or custom effects).",
-                            "type": "array",
-                            "items": {
-                                "type": "string",
-                                "title": "Effect Name",
-                                "placeholder": "Enter effect name (e.g., Rainbow Runner)",
-                                "typeahead": {
-                                    "source": [
-                                        "Solid",
-                                        "Blink",
-                                        "Breathe",
-                                        "Wipe",
-                                        "Wipe Random",
-                                        "Random Colors",
-                                        "Sweep",
-                                        "Dynamic",
-                                        "Colorloop",
-                                        "Rainbow",
-                                        "Scan",
-                                        "Dual Scan",
-                                        "Fade",
-                                        "Theater",
-                                        "Theater Rainbow",
-                                        "Running",
-                                        "Saw",
-                                        "Twinkle",
-                                        "Dissolve",
-                                        "Dissolve Rnd",
-                                        "Sparkle",
-                                        "Dark Sparkle",
-                                        "Sparkle+",
-                                        "Strobe",
-                                        "Strobe Rainbow",
-                                        "Mega Strobe",
-                                        "Blink Rainbow",
-                                        "Android",
-                                        "Chase",
-                                        "Chase Random",
-                                        "Chase Rainbow",
-                                        "Chase Flash",
-                                        "Chase Flash Rnd",
-                                        "Rainbow Runner",
-                                        "Colorful",
-                                        "Traffic Light",
-                                        "Sweep Random",
-                                        "Chase 2",
-                                        "Aurora",
-                                        "Stream",
-                                        "Scanner",
-                                        "Lighthouse",
-                                        "Fireworks",
-                                        "Rain",
-                                        "Tetrix",
-                                        "Fire Flicker",
-                                        "Gradient",
-                                        "Loading",
-                                        "In Out",
-                                        "In In",
-                                        "Out Out",
-                                        "Out In",
-                                        "Circus",
-                                        "Chase 3",
-                                        "Two Dots",
-                                        "Tri Chase",
-                                        "Tri Wipe",
-                                        "Tri Fade",
-                                        "Lightning",
-                                        "ICU",
-                                        "Multi Comet",
-                                        "Dual Scanner",
-                                        "Stream 2",
-                                        "Oscillate",
-                                        "Pride 2015",
-                                        "Juggle",
-                                        "Palette",
-                                        "Fire 2012",
-                                        "Colorwaves",
-                                        "Bpm",
-                                        "Fill Noise",
-                                        "Noise 1",
-                                        "Noise 2",
-                                        "Noise 3",
-                                        "Noise 4",
-                                        "Colortwinkle",
-                                        "Lake",
-                                        "Meteor",
-                                        "Smooth Meteor",
-                                        "Railway",
-                                        "Ripple",
-                                        "Twinklefox",
-                                        "Twinklecat",
-                                        "Halloween Eyes",
-                                        "Static Pattern",
-                                        "Tri Static Pattern",
-                                        "Spots",
-                                        "Spots Fade",
-                                        "Glitter",
-                                        "Candle",
-                                        "Fireworks Starburst",
-                                        "Fireworks 1D",
-                                        "Bouncing Balls",
-                                        "Sinelon",
-                                        "Sinelon Dual",
-                                        "Sinelon Rainbow",
-                                        "Popcorn",
-                                        "Drip",
-                                        "Plasma",
-                                        "Percent",
-                                        "Ripple Rainbow",
-                                        "Heartbeat",
-                                        "Pacifica",
-                                        "Candle Multi",
-                                        "Solid Glitter",
-                                        "Sunrise",
-                                        "Phased",
-                                        "Twinkleup",
-                                        "Noise Pal",
-                                        "Sine",
-                                        "Phased Noise",
-                                        "Flow",
-                                        "Chunchun",
-                                        "Dancing Shadows",
-                                        "Washing Machine",
-                                        "Blends",
-                                        "TV Simulator",
-                                        "Blobs",
-                                        "Blurz",
-                                        "Black Hole",
-                                        "Swirl",
-                                        "Tartan",
-                                        "Waverly",
-                                        "Wavesins",
-                                        "Waving Cell",
-                                        "Waterfall",
-                                        "Akemi"
-                                    ]
-                                },
-                                "required": false
-                            }
-                        },
-                        "presets": {
-                            "title": "Presets",
-                            "description": "Presets for this WLED instance",
-                            "type": "array",
-                            "items": {
-                                "type": "string",
-                                "title": "Preset",
-                                "required": false
-                            }
-                        },
-                        "turnOffWledWithEffect": {
-                            "title": "Turn Off WLED with Effect",
-                            "description": "Turn off WLED when the Effect switch is turned off",
-                            "type": "boolean",
-                            "required": false
-                        },
-                        "turnOffWledWithPreset": {
-                            "title": "Turn Off WLED with Preset",
-                            "description": "Turn off WLED when the Preset switch is turned off",
-                            "type": "boolean",
-                            "required": false
-                        },
-                        "log": {
-                            "title": "Logging",
-                            "description": "Enable Logging/Debugging option",
-                            "type": "boolean",
-                            "required": false
-                        },
-                        "ambilightSwitch": {
-                            "title": "Ambilight Switch",
-                            "description": "Enable Ambilight Switch",
-                            "type": "boolean",
-                            "required": false
-                        }
-                    }
-                }
+  "pluginAlias": "WLED Presets",
+  "pluginType": "platform",
+  "singular": true,
+  "headerDisplay": "homebridge-wled-presets: HomeKit support for WLED focused on presets. See the [Github project page](https://github.com/ncovercash/homebridge-wled-presets) for more documentation.",
+  "footerDisplay": "Configure at least one WLED device with a valid IP address to enable the plugin.",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "wleds": {
+        "type": "array",
+        "title": "wleds",
+        "items": {
+          "type": "object",
+          "title": "WLED instance",
+          "properties": {
+            "name": {
+              "title": "WLED name",
+              "description": "Name for this WLED instance.",
+              "type": "string",
+              "placeholder": "Enter WLED name",
+              "required": true
+            },
+            "host": {
+              "title": "WLED IP Address",
+              "description": "IP address for this WLED instance.",
+              "type": "string",
+              "format": "ipv4",
+              "placeholder": "Enter WLED IP address",
+              "required": true
+            },
+            "log": {
+              "title": "Logging",
+              "description": "Enable Logging/Debugging option",
+              "type": "boolean",
+              "required": false
             }
+          }
         }
+      }
     }
+  }
 }

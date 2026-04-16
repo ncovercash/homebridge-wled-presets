@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   release:
@@ -19,8 +19,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Verify package-lock.json exists
         run: |
@@ -48,18 +48,18 @@ jobs:
         run: |
           TAG_VERSION="${{ steps.tag_version.outputs.VERSION }}"
           NOTES="## What's New in v${TAG_VERSION}
-          
+
           ### Installation
           \`\`\`bash
-          npm install -g homebridge-simple-wled@${TAG_VERSION}
+          npm install -g homebridge-wled-presets@${TAG_VERSION}
           \`\`\`
-          
+
           ### Changes
           See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/v${TAG_VERSION}/CHANGELOG.md) for detailed changes.
-          
+
           ### Full Changelog
           https://github.com/${{ github.repository }}/compare/v${{ github.event.before }}...v${TAG_VERSION}"
-          
+
           echo "NOTES<<EOF" >> $GITHUB_OUTPUT
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -74,4 +74,3 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
