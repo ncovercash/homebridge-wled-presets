@@ -1,5 +1,9 @@
 # Changelog
 
+# [1.0.1] - 2026-04-18
+
+- Fix bug with service identifiers not having correct labels
+
 # [1.0.0] - 2026-04-18
 
 - New implementation of plugin initialization
