@@ -1,22 +1,17 @@
 import {
-    type API,
+    Categories,
     CharacteristicEventTypes,
-    type Logging,
-    type PlatformAccessory,
-    type CharacteristicValue,
     type CharacteristicGetCallback,
     type CharacteristicSetCallback,
+    type CharacteristicValue,
+    type Logging,
+    type PlatformAccessory,
     type Service,
-    type HAP,
-    AccessoryPlugin,
-    Categories,
-    Controller,
 } from 'homebridge';
-import { PLUGIN_NAME } from './settings';
-import { type WLEDPlatform } from './wled-platform';
-import { WLEDWebSocket, type WLEDResponse } from './utils/wsUtils';
-import { getPresetLabel, PresetDefinition } from './utils/presetUtils';
 import { WLEDConfig } from './types';
+import { getPresetLabel, PresetDefinition } from './utils/presetUtils';
+import { WLEDWebSocket, type WLEDResponse } from './utils/wsUtils';
+import { type WLEDPlatform } from './wled-platform';
 
 export class WLED {
     private readonly log: Logging;
@@ -258,7 +253,7 @@ export class WLED {
     }
 
     registerPresetServices(presetId: number, preset: PresetDefinition): Service {
-        const identifier = `PRESET_${presetId}_${getPresetLabel(presetId, preset)}`;
+        const identifier = `Preset ID=${presetId} Label=${getPresetLabel(presetId, preset)}`;
 
         const service =
             this.accessory.getServiceById(this.platform.Service.Lightbulb, identifier) ??
@@ -267,6 +262,10 @@ export class WLED {
             );
 
         service.setCharacteristic(this.platform.Characteristic.Name, getPresetLabel(presetId, preset));
+        service.getCharacteristic(this.platform.Characteristic.ConfiguredName) ??
+            service
+                .addCharacteristic(this.platform.Characteristic.ConfiguredName)
+                .setValue(getPresetLabel(presetId, preset));
 
         service
             .getCharacteristic(this.platform.Characteristic.On)
