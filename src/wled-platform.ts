@@ -1,102 +1,128 @@
-import {type API, APIEvent, type DynamicPlatformPlugin, type Logging, type PlatformAccessory, type PlatformConfig} from 'homebridge';
-import {WLED} from './wled-accessory';
-import {loadEffectsViaHTTP} from './utils/wsUtils';
+import {
+    type API,
+    APIEvent,
+    Characteristic,
+    type DynamicPlatformPlugin,
+    type Logging,
+    type PlatformAccessory,
+    type PlatformConfig,
+    Service,
+} from 'homebridge';
+import { WLED } from './wled-accessory';
+import { loadPresets } from './utils/presetUtils';
+import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
+import { WLEDConfig } from './types';
 
 export class WLEDPlatform implements DynamicPlatformPlugin {
-  accessories: PlatformAccessory[] = [];
+    public readonly Service: typeof Service;
+    public readonly Characteristic: typeof Characteristic;
 
-  readonly log: Logging;
+    readonly accessories: Map<string, PlatformAccessory<WLEDConfig>> = new Map();
 
-  readonly api: API;
+    constructor(
+        public readonly log: Logging,
+        public readonly config: PlatformConfig,
+        public readonly api: API,
+    ) {
+        this.Service = api.hap.Service;
+        this.Characteristic = api.hap.Characteristic;
 
-  readonly config: PlatformConfig;
+        // Verify configuration exists and is valid
+        if (!config) {
+            this.log.warn('No configuration provided. Plugin will not start until configured.');
+            return;
+        }
 
-  private readonly wleds: WLED[] = [];
+        // Verify wleds array exists and has entries
+        if (!config.wleds || !Array.isArray(config.wleds) || config.wleds.length === 0) {
+            this.log.info(
+                'No WLEDs have been configured. Plugin will not start until WLED devices are added in the Homebridge UI.',
+            );
+            return;
+        }
 
-  constructor(log: Logging, config: PlatformConfig, api: API) {
-      this.api = api;
-      this.config = config;
-      this.log = log;
+        // Verify at least one WLED has a valid host
+        const hasValidWled = config.wleds.some(
+            (wled: any) => wled && wled.host && (typeof wled.host === 'string' || Array.isArray(wled.host)),
+        );
 
-      // Verify configuration exists and is valid
-      if (!config) {
-          this.log.warn('No configuration provided. Plugin will not start until configured.');
-          return;
-      }
+        if (!hasValidWled) {
+            this.log.warn(
+                'No valid WLED configuration found. Plugin will not start until at least one WLED device with a valid host is configured.',
+            );
+            return;
+        }
 
-      // Verify wleds array exists and has entries
-      if (!config.wleds || !Array.isArray(config.wleds) || config.wleds.length === 0) {
-          this.log.info('No WLEDs have been configured. Plugin will not start until WLED devices are added in the Homebridge UI.');
-          return;
-      }
+        try {
+            api.on(APIEvent.DID_FINISH_LAUNCHING, () => {
+                this.launchWLEDs().catch((error) => {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    this.log.error(`Error during platform launch: ${errorMessage}`);
+                });
+            });
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.log.error(`Error registering platform event: ${errorMessage}`);
+        }
+    }
 
-      // Verify at least one WLED has a valid host
-      const hasValidWled = config.wleds.some((wled: any) => wled && wled.host && (typeof wled.host === 'string' || Array.isArray(wled.host)));
+    configureAccessory(accessory: PlatformAccessory<WLEDConfig>) {
+        this.log.info('Loading accessory from cache:', accessory.displayName);
 
-      if (!hasValidWled) {
-          this.log.warn('No valid WLED configuration found. Plugin will not start until at least one WLED device with a valid host is configured.');
-          return;
-      }
+        // Add the restored accessory to the accessories cache, so we can track if it has already been registered
+        this.accessories.set(accessory.UUID, accessory);
+    }
 
-      try {
-          api.on(APIEvent.DID_FINISH_LAUNCHING, () => {
-              try {
-                  this.launchWLEDs();
-              } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  this.log.error(`Error during platform launch: ${errorMessage}`);
-              }
-          });
-      } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          this.log.error(`Error registering platform event: ${errorMessage}`);
-      }
-  }
+    private async launchWLEDs(): Promise<void> {
+        if (!this.config.wleds || !Array.isArray(this.config.wleds)) {
+            this.log.warn('No WLEDs configured or invalid configuration.');
+            return;
+        }
 
-  configureAccessory(accessory: PlatformAccessory): void {
-      this.accessories.push(accessory);
-  }
+        const discoveredCacheUuids: string[] = [];
+        const toRegister: PlatformAccessory[] = [];
 
-  private launchWLEDs(): void {
-      if (!this.config.wleds || !Array.isArray(this.config.wleds)) {
-          this.log.warn('No WLEDs configured or invalid configuration.');
-          return;
-      }
+        for (const wled of this.config.wleds) {
+            if (!wled || !wled.host) {
+                this.log.warn('Skipping WLED configuration: No host or IP address configured.');
+                continue;
+            }
 
-      for (const wled of this.config.wleds) {
-          try {
-              if (!wled || !wled.host) {
-                  this.log.warn('Skipping WLED configuration: No host or IP address configured.');
-              } else {
-                  // Determine primary host for effect loading
-                  const primaryHost = Array.isArray(wled.host) ? wled.host[0] : wled.host;
+            const uuid = this.api.hap.uuid.generate(JSON.stringify(wled.host));
+            discoveredCacheUuids.push(uuid);
 
-                  loadEffectsViaHTTP(primaryHost)
-                      .then(effects => {
-                          try {
-                              this.wleds.push(new WLED(this, wled, effects));
-                          } catch (error) {
-                              const errorMessage = error instanceof Error ? error.message : String(error);
-                              this.log.error(`Failed to create WLED instance for ${primaryHost}: ${errorMessage}`);
-                          }
-                      })
-                      .catch(error => {
-                          const errorMessage = error instanceof Error ? error.message : String(error);
-                          this.log.error(`Error loading effects for ${primaryHost}: ${errorMessage}`);
+            let accessory: PlatformAccessory<WLEDConfig>;
+            if (this.accessories.has(uuid)) {
+                accessory = this.accessories.get(uuid)!;
+                accessory.context = wled;
+            } else {
+                accessory = new this.api.platformAccessory<WLEDConfig>(wled.name, uuid);
+                accessory.context = wled;
+                toRegister.push(accessory);
+            }
 
-                          // Still create WLED instance with empty effects array as fallback
-                          try {
-                              this.wleds.push(new WLED(this, wled, []));
-                          } catch (createError) {
-                              const createErrorMessage = createError instanceof Error ? createError.message : String(createError);
-                              this.log.error(`Failed to create WLED instance with fallback for ${primaryHost}: ${createErrorMessage}`);
-                          }
-                      });
-              }
-          } catch (error) {
-              const errorMessage = error instanceof Error ? error.message : String(error);
-              this.log.error(`Unexpected error processing WLED configuration: ${errorMessage}`);
-          }
-      }
-  }
+            // Determine primary host for preset loading
+            const primaryHost = Array.isArray(wled.host) ? wled.host[0] : wled.host;
+
+            let presets: Awaited<ReturnType<typeof loadPresets>>;
+            try {
+                presets = await loadPresets(primaryHost);
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                this.log.error(`Failed to load presets for ${primaryHost}: ${errorMessage}`);
+                continue;
+            }
+
+            new WLED(this, accessory, presets);
+        }
+
+        toRegister.forEach((a) => this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [a]));
+
+        for (const [uuid, accessory] of this.accessories) {
+            if (!discoveredCacheUuids.includes(uuid)) {
+                this.log.info('Removing existing accessory from cache:', accessory.displayName);
+                this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+            }
+        }
+    }
 }

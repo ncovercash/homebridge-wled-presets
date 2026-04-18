@@ -60,8 +60,7 @@ Control multiple WLED devices with a single accessory by setting `host` to an ar
   "wleds": [
     {
       "name": "LED-Table",
-      "host": ["192.168.1.100", "192.168.1.101", "192.168.1.102"],
-      "effects": ["Rainbow Runner", "Circus", "Fireworks"]
+      "host": ["192.168.1.100", "192.168.1.101", "192.168.1.102"]
     }
   ]
 }
@@ -77,21 +76,6 @@ The plugin uses WebSocket connections (`ws://[WLED-IP]/ws`) for real-time commun
 - Automatic reconnection on connection loss
 - Message queuing when disconnected
 - Support for up to 4 concurrent WebSocket connections per device
-
-## 🧪 Testing
-
-The plugin includes comprehensive unit tests:
-
-```bash
-# Run all tests
-npm test
-
-# Watch mode
-npm run test:watch
-
-# Coverage report
-npm run test:coverage
-```
 
 ## 📝 Development
 

@@ -1,5 +1,4 @@
 import WebSocket from 'ws';
-import axios from 'axios';
 
 export interface WLEDState {
     on?: boolean;
@@ -229,16 +228,5 @@ export class WLEDWebSocket {
 
     getConnected(): boolean {
         return this.isConnected;
-    }
-}
-
-export async function loadEffectsViaHTTP(host: string): Promise<string[]> {
-    // Fallback to HTTP for initial effect loading if WebSocket is not available
-    try {
-        const response = await axios.get(`http://${host}/json/eff`);
-        return response.data;
-    } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        throw new Error(`Error while loading effects on ${host}: ${errorMessage}`);
     }
 }
