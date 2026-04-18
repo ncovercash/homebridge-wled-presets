@@ -1,14 +1,14 @@
 # Changelog
 
-# [1.0.2] - 2026-04-18
+### [1.0.2] - 2026-04-18
 
 - Allow specifying multiple WLED hosts via comma-separated string in addition to array format
 
-# [1.0.1] - 2026-04-18
+### [1.0.1] - 2026-04-18
 
 - Fix bug with service identifiers not having correct labels
 
-# [1.0.0] - 2026-04-18
+### [1.0.0] - 2026-04-18
 
 - New implementation of plugin initialization
 - Expose presets as individual Lightbulb services instead of TV services
