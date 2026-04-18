@@ -37,7 +37,7 @@ npm link
 
 # In your Homebridge directory (usually ~/.homebridge)
 cd ~/.homebridge
-npm link homebridge-wled-presets
+npm link @ncovercash/homebridge-wled-presets
 ```
 
 ### Option 2: Direct linking with dev script
@@ -161,7 +161,7 @@ npm run test:coverage
 1. Make sure `npm link` was successful
 2. Check if the plugin is linked in `~/.homebridge/node_modules`:
 ```bash
-ls -la ~/.homebridge/node_modules | grep homebridge-wled-presets
+ls -lad ~/.homebridge/node_modules/@ncovercash/homebridge-wled-presets
 ```
 
 ### Changes Not Applied
@@ -206,7 +206,7 @@ npm unlink
 
 # In the Homebridge directory
 cd ~/.homebridge
-npm unlink homebridge-wled-presets
+npm unlink @ncovercash/homebridge-wled-presets
 ```
 
 ## Useful Commands

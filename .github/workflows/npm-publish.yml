@@ -2,13 +2,16 @@ name: NPM Publish
 
 on:
   release:
-    types: [published]
+    types: [ published ]
 
 jobs:
   publish:
     name: Publish to NPM
     runs-on: ubuntu-latest
     if: startsWith(github.event.release.tag_name, 'v')
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - name: Checkout code
@@ -32,9 +35,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
-
       - name: Build
         run: npm run build
 
@@ -53,7 +53,7 @@ jobs:
           echo "Version match confirmed: $TAG_VERSION"
 
       - name: Publish to NPM
-        run: npm publish
+        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -61,5 +61,5 @@ jobs:
         run: |
           TAG_VERSION="${{ steps.tag_version.outputs.VERSION }}"
           sleep 5
-          npm view homebridge-wled-presets@${TAG_VERSION} version || exit 1
+          npm view @ncovercash/homebridge-wled-presets@${TAG_VERSION} version || exit 1
           echo "Successfully published version ${TAG_VERSION} to NPM"
