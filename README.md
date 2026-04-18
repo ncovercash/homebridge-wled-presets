@@ -16,6 +16,12 @@ Presets show up as individual Lightbulb services in HomeKit, allowing you to eas
 
 ![Example of LED Strip Presets in Home App](./sample.jpeg)
 
+## Important Nuances
+
+Each individual preset can have its brightness controlled (and will default to the preset's defined brightness when first turned on, if set). As you would expect, turning one preset on will indicate the others as off. Additionally, changes between presets in the web interface will sync to HomeKit.
+
+However, if the controls are changed from a preset to a custom setting, **the previously used preset will still show as “on”**. This avoids confusion as otherwise changing the color would show the LEDs as off (and also make it impossible to turn them off via Siri/etc without first turning them on again).
+
 ## ✨ Features
 
 - **WebSocket Support**: Real-time communication with WLED devices via WebSocket for instant updates
@@ -24,7 +30,7 @@ Presets show up as individual Lightbulb services in HomeKit, allowing you to eas
 
 ### ⚙️ Installation / NPM Package
 
-Install via Homebridge UI or NPM: [NPM Package](https://www.npmjs.com/package/homebridge-wled-presets)
+Install via Homebridge UI or NPM: [NPM Package](https://www.npmjs.com/package/@ncovercash/homebridge-wled-presets)
 
 ### Manual Configuration
 

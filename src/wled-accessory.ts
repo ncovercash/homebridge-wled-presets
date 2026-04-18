@@ -88,6 +88,7 @@ export class WLED {
   }
 
   async identify(): Promise<void> {
+    this.log.info(`Identifying WLED Strip ${this.accessory.displayName} by cycling through presets...`);
     for (const presetId of [...Object.keys(this.presets), 'off', ...Object.keys(this.presets)].slice(0, 5)) {
       if (presetId === 'off') {
         this.turnOffWLED();
@@ -178,11 +179,11 @@ export class WLED {
     }
   }
 
-  private handleStateUpdate(data: WLEDResponse, sourceHost: string): void {
+  private handleStateUpdate({ state }: WLEDResponse, sourceHost: string): void {
     try {
-      const state = data.state;
-
-      // Const info = data.info; // Unused for now
+      if (this.debug) {
+        this.log.info(`Received state update from ${sourceHost}: on=${state.on}, bri=${state.bri}, ps=${state.ps}`);
+      }
 
       // Update cached values
       if (state.on !== undefined) {
@@ -193,8 +194,8 @@ export class WLED {
         this.state.brightness = state.bri;
       }
 
-      // Update preset
-      if (state.ps !== undefined) {
+      // Update preset (ignoring -1, to retain control of custom setups via home app)
+      if (state.ps !== undefined && state.ps !== -1) {
         this.state.preset = state.ps;
       }
 
@@ -270,19 +271,40 @@ export class WLED {
       .onGet(() => {
         const result = this.state.preset === presetId && this.state.on;
         if (this.debug) {
-          this.log(`Current state of preset ${presetId} was returned: ${result}`);
+          this.log(`Current state of preset ${presetId}'s ON was requested and returned: ${result}`);
         }
 
         return result;
       })
       .onSet((value: CharacteristicValue) => {
         const desiredValue = value as boolean;
-        if ((desiredValue && !this.state.on) || this.state.preset !== presetId) {
+
+        if (this.debug) {
+          this.log(
+            `Received request to set preset ${presetId} to ${desiredValue ? 'ON' : 'OFF'}; current state is ${this.state.on ? 'ON' : 'OFF'}`,
+          );
+        }
+
+        // if requesting to turn preset off that is already off, do nothing
+        if (desiredValue === false && (this.state.on === false || this.state.preset !== presetId)) {
+          this.log.info(`Preset ${presetId} is already off; ignoring request to turn off.`);
+          return;
+        }
+        // if requesting to turn preset on that is already on, do nothing
+        if (desiredValue === true && this.state.on === true && this.state.preset === presetId) {
+          this.log.info(`Preset ${presetId} is already on; ignoring request to turn on.`);
+          return;
+        }
+
+        // if turning on a preset that is currently off
+        if (desiredValue && !this.state.on) {
           this.turnOnWLEDPreset(presetId);
           if (this.debug) {
             this.log(`Light was turned on and set to preset ${presetId}!`);
           }
-        } else if (!desiredValue && this.state.on && this.state.preset === presetId) {
+        }
+        // if turning off a preset that is currently on
+        else if (!desiredValue && this.state.on && this.state.preset === presetId) {
           this.turnOffWLED();
           if (this.debug) {
             this.log('Light was turned off!');
@@ -297,7 +319,7 @@ export class WLED {
       .getCharacteristic(this.platform.Characteristic.Brightness)
       .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
         if (this.debug) {
-          this.log('Current brightness: ' + this.state.brightness);
+          this.log(`Current preset ${presetId}'s brightness: ${this.state.brightness}`);
         }
 
         callback(undefined, this.currentBrightnessToPercent());
@@ -307,7 +329,7 @@ export class WLED {
         this.wsSetBrightness(presetId);
 
         if (this.debug) {
-          this.log('Set brightness to ' + value + '% ' + this.state.brightness);
+          this.log(`Set preset ${presetId}'s brightness to ${value}% (${this.state.brightness})`);
         }
 
         callback();
@@ -342,9 +364,13 @@ export class WLED {
       ps: presetId,
       bri: this.presets[presetId]?.bri,
     });
-    this.services[presetId].updateCharacteristic(this.platform.Characteristic.Brightness, 100);
     this.state.on = true;
+    this.state.brightness = this.presets[presetId]?.bri ?? this.state.brightness;
     this.state.preset = presetId;
+    this.services[presetId].updateCharacteristic(
+      this.platform.Characteristic.Brightness,
+      this.currentBrightnessToPercent(),
+    );
   }
 
   updateLight(): void {

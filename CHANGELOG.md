@@ -1,5 +1,10 @@
 # Changelog
 
+### [1.0.4] - 2026-04-18
+
+- Improve handling of mass on/off requests to prevent conflicts
+- Ensure custom configurations via web UI do not show as "off" in Home app
+
 ### [1.0.3] - 2026-04-18
 
 - Improve name handling for individual services
