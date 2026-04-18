@@ -9,7 +9,9 @@
 [![License](https://img.shields.io/badge/license-ISC-blue.svg)](LICENSE)
 [![Test Coverage](https://codecov.io/gh/ncovercash/homebridge-wled-presets/branch/main/graph/badge.svg)](https://codecov.io/gh/ncovercash/homebridge-wled-presets)
 
-Homebridge Plugin for WLED Strips ([WLED-Project by Aircoookie](https://github.com/Aircoookie/WLED)) centered around presets. Based on the original [homebridge-simple-wled](https://github.com/jstrausd/homebridge-simple-wled) plugin, but with a lot of non-preset options removed.
+Homebridge Plugin for WLED Strips ([WLED-Project by Aircoookie](https://github.com/Aircoookie/WLED)) centered around presets. Based on the original [homebridge-simple-wled](https://github.com/jstrausd/homebridge-simple-wled) plugin, however, this version is focused around presets and presets only!
+
+Presets show up as individual Lightbulb services in HomeKit, allowing you to easily control your WLED devices between your favorite options and leaving the fancier customization options to the WLED web interface. This also means Siri commands are as easy as `Hey Siri, turn on LED Strip Disco Mode` and that full automation support is available.
 
 ## ✨ Features
 
@@ -65,6 +67,10 @@ Control multiple WLED devices with a single accessory by setting `host` to an ar
   ]
 }
 ```
+
+## Troubleshooting
+
+If presets are not being created or removed, try restarting Homebridge or clearing the accessory cache.
 
 ## 🔧 Technical Details
 

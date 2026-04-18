@@ -141,19 +141,6 @@ Fix errors automatically:
 npm run lint:fix
 ```
 
-## Running Tests
-
-```bash
-# All tests
-npm test
-
-# Tests in watch mode
-npm run test:watch
-
-# Tests with coverage report
-npm run test:coverage
-```
-
 ## Common Issues
 
 ### Plugin Not Found
@@ -188,9 +175,6 @@ Before publishing:
 # Clean build
 npm run clean
 npm run build
-
-# Run tests
-npm test
 
 # Linting
 npm run lint
