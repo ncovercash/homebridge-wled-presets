@@ -59,13 +59,21 @@ export class WLED {
     );
 
     this.accessory.category = Categories.LIGHTBULB;
-    (
+    const accessoryInfo =
       this.accessory.getService(this.platform.Service.AccessoryInformation) ??
-      this.accessory.addService(this.platform.Service.AccessoryInformation)
-    )
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'WLED')
-      .setCharacteristic(this.platform.Characteristic.Model, 'WLED Light Strip')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, this.hosts.join(','));
+      this.accessory.addService(this.platform.Service.AccessoryInformation);
+    accessoryInfo.setCharacteristic(this.platform.Characteristic.Manufacturer, 'WLED');
+    accessoryInfo.setCharacteristic(this.platform.Characteristic.Model, 'WLED Light Strip');
+    accessoryInfo.setCharacteristic(this.platform.Characteristic.SerialNumber, this.hosts.join(','));
+    getVersion(this.hosts[0])
+      .then((version) => {
+        this.log.info(`Fetched WLED version ${version} from ${this.hosts[0]}`);
+        accessoryInfo.setCharacteristic(this.platform.Characteristic.FirmwareRevision, version);
+      })
+      .catch((e) => {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        this.log.error(`Failed to fetch WLED version from ${this.hosts[0]}: ${errorMessage}`);
+      });
 
     this.services = Object.fromEntries(
       Object.entries(presets).map(([presetId, preset]) => [
@@ -80,6 +88,7 @@ export class WLED {
         this.log.info('Removing orphaned service from cache:', orphaned.displayName);
         this.accessory.removeService(orphaned);
       });
+
     this.accessory.on('identify', () => this.identify());
 
     this.log.info('WLED Strip finished initializing!');
