@@ -1,5 +1,9 @@
 # Changelog
 
+### [1.0.3] - 2026-04-18
+
+- Improve name handling for individual services
+
 ### [1.0.2] - 2026-04-18
 
 - Allow specifying multiple WLED hosts via comma-separated string in addition to array format
