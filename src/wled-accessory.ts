@@ -261,7 +261,7 @@ export class WLED {
 
     service.setCharacteristic(this.platform.Characteristic.Name, getPresetLabel(presetId, preset));
     if (!service.getCharacteristic(this.platform.Characteristic.ConfiguredName)) {
-      service.addCharacteristic(this.platform.Characteristic.ConfiguredName);
+      service.addOptionalCharacteristic(this.platform.Characteristic.ConfiguredName);
     }
     service.getCharacteristic(this.platform.Characteristic.ConfiguredName).setValue(getPresetLabel(presetId, preset));
 
