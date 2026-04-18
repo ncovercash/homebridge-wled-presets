@@ -102,7 +102,7 @@ export class WLEDPlatform implements DynamicPlatformPlugin {
             }
 
             // Determine primary host for preset loading
-            const primaryHost = Array.isArray(wled.host) ? wled.host[0] : wled.host;
+            const primaryHost = Array.isArray(wled.host) ? wled.host[0] : wled.host.split(",")[0].trim();
 
             let presets: Awaited<ReturnType<typeof loadPresets>>;
             try {

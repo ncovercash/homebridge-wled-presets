@@ -44,7 +44,7 @@ export class WLED {
             this.hosts = accessory.context.host;
             this.multipleHosts = true;
         } else {
-            this.hosts = [accessory.context.host];
+            this.hosts = accessory.context.host.split(",").map(h => h.trim());
             this.multipleHosts = false;
         }
 

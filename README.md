@@ -54,17 +54,19 @@ After editing the config, restart your Homebridge server and add the accessory m
 
 ## 💡💡💡 Multiple WLED Hosts
 
-Control multiple WLED devices with a single accessory by setting `host` to an array:
+Control multiple WLED devices with a single accessory by setting `host` to an array or a comma-separated string:
 
 **Important:** The first WLED host acts as the primary device. Changes made to the primary WLED (e.g., via the web panel) will sync to all other WLEDs in the array.
 
-```json
+```json5
 {
   "platform": "WLED Presets",
   "wleds": [
     {
       "name": "LED-Table",
-      "host": ["192.168.1.100", "192.168.1.101", "192.168.1.102"]
+      "host": ["192.168.1.100", "192.168.1.101", "192.168.1.102"],
+      // or
+      "host": "192.168.1.100, 192.168.1.101, 192.168.1.102"
     }
   ]
 }

@@ -23,10 +23,10 @@
             },
             "host": {
               "title": "WLED IP Address",
-              "description": "IP address for this WLED instance.",
+              "description": "IP address for this WLED instance, or a comma separated list of IP addresses.",
               "type": "string",
               "format": "ipv4",
-              "placeholder": "Enter WLED IP address",
+              "placeholder": "Enter WLED IP address(es)",
               "required": true
             },
             "log": {
