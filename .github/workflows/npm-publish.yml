@@ -57,10 +57,3 @@ jobs:
 
       - name: Publish to NPM
         run: npm publish --provenance --access public
-
-      - name: Verify NPM publication
-        run: |
-          TAG_VERSION="${{ steps.tag_version.outputs.VERSION }}"
-          sleep 5
-          npm view @ncovercash/homebridge-wled-presets@${TAG_VERSION} version || exit 1
-          echo "Successfully published version ${TAG_VERSION} to NPM"

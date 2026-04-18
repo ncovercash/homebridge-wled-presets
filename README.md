@@ -2,8 +2,8 @@
 
 ### (@ncovercash/homebridge-wled-presets)
 
-[![npm](https://img.shields.io/npm/v/@ncovercash/homebridge-wled-presets.svg)](https://www.npmjs.com/package/homebridge-wled-presets)
-[![downloads](https://img.shields.io/npm/dm/@ncovercash/homebridge-wled-presets.svg)](https://www.npmjs.com/package/homebridge-wled-presets)
+[![npm](https://img.shields.io/npm/v/@ncovercash/homebridge-wled-presets.svg)](https://www.npmjs.com/package/@ncovercash/homebridge-wled-presets)
+[![downloads](https://img.shields.io/npm/dm/@ncovercash/homebridge-wled-presets.svg)](https://www.npmjs.com/package/@ncovercash/homebridge-wled-presets)
 [![last commit](https://img.shields.io/github/last-commit/ncovercash/homebridge-wled-presets.svg)](https://github.com/ncovercash/homebridge-wled-presets/commits)
 [![build](https://img.shields.io/github/actions/workflow/status/ncovercash/homebridge-wled-presets/ci.yml?branch=main&label=build)](https://github.com/ncovercash/homebridge-wled-presets/actions)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue.svg)](https://www.typescriptlang.org/)
