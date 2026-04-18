@@ -6,10 +6,9 @@
 [![downloads](https://img.shields.io/npm/dm/@ncovercash/homebridge-wled-presets.svg)](https://www.npmjs.com/package/homebridge-wled-presets)
 [![last commit](https://img.shields.io/github/last-commit/ncovercash/homebridge-wled-presets.svg)](https://github.com/ncovercash/homebridge-wled-presets/commits)
 [![build](https://img.shields.io/github/actions/workflow/status/ncovercash/homebridge-wled-presets/ci.yml?branch=main&label=build)](https://github.com/ncovercash/homebridge-wled-presets/actions)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.2-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-ISC-blue.svg)](LICENSE)
-[![Test Coverage](https://codecov.io/gh/ncovercash/homebridge-wled-presets/branch/main/graph/badge.svg)](https://codecov.io/gh/ncovercash/homebridge-wled-presets)
 
 Homebridge Plugin for WLED Strips ([WLED-Project by Aircoookie](https://github.com/Aircoookie/WLED)) centered around presets. Based on the original [homebridge-simple-wled](https://github.com/jstrausd/homebridge-simple-wled) plugin, however, this version is focused around presets and presets only!
 
