@@ -14,6 +14,8 @@ Homebridge Plugin for WLED Strips ([WLED-Project by Aircoookie](https://github.c
 
 Presets show up as individual Lightbulb services in HomeKit, allowing you to easily control your WLED devices between your favorite options and leaving the fancier customization options to the WLED web interface. This also means Siri commands are as easy as `Hey Siri, turn on LED Strip Disco Mode` and that full automation support is available.
 
+![Example of LED Strip Presets in Home App](./sample.jpeg)
+
 ## ✨ Features
 
 - **WebSocket Support**: Real-time communication with WLED devices via WebSocket for instant updates
@@ -59,15 +61,15 @@ Control multiple WLED devices with a single accessory by setting `host` to an ar
 
 ```json5
 {
-  "platform": "WLED Presets",
-  "wleds": [
+  platform: 'WLED Presets',
+  wleds: [
     {
-      "name": "LED-Table",
-      "host": ["192.168.1.100", "192.168.1.101", "192.168.1.102"],
+      name: 'LED-Table',
+      host: ['192.168.1.100', '192.168.1.101', '192.168.1.102'],
       // or
-      "host": "192.168.1.100, 192.168.1.101, 192.168.1.102"
-    }
-  ]
+      host: '192.168.1.100, 192.168.1.101, 192.168.1.102',
+    },
+  ],
 }
 ```
 
