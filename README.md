@@ -1,4 +1,6 @@
-# Homebridge Simple WLED
+# Homebridge WLED Presets
+
+### (@ncovercash/homebridge-wled-presets)
 
 [![npm](https://img.shields.io/npm/v/@ncovercash/homebridge-wled-presets.svg)](https://www.npmjs.com/package/homebridge-wled-presets)
 [![downloads](https://img.shields.io/npm/dm/@ncovercash/homebridge-wled-presets.svg)](https://www.npmjs.com/package/homebridge-wled-presets)
