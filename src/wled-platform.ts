@@ -102,19 +102,7 @@ export class WLEDPlatform implements DynamicPlatformPlugin {
         toRegister.push(accessory);
       }
 
-      // Determine primary host for preset loading
-      const primaryHost = Array.isArray(wled.host) ? wled.host[0] : wled.host.split(',')[0].trim();
-
-      let presets: Awaited<ReturnType<typeof loadPresets>>;
-      try {
-        presets = await loadPresets(primaryHost);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        this.log.error(`Failed to load presets for ${primaryHost}: ${errorMessage}`);
-        continue;
-      }
-
-      new WLED(this, accessory, presets);
+      new WLED(this, accessory);
     }
 
     toRegister.forEach((a) => this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [a]));

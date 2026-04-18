@@ -1,5 +1,6 @@
 export interface WLEDConfig {
-    name: string;
-    host: string | string[];
-    log?: boolean;
+  name: string;
+  host: string | string[];
+  log?: boolean;
+  presetUpdateCheckIntervalSeconds?: number;
 }

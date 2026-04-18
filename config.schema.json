@@ -34,6 +34,14 @@
               "description": "Enable Logging/Debugging option",
               "type": "boolean",
               "required": false
+            },
+            "presetUpdateCheckIntervalSeconds": {
+              "title": "Preset update check interval (seconds)",
+              "description": "How many seconds the plugin should wait between checking for preset updates on the WLED device. Set to 0 to disable periodic checks and only check for updates when the plugin starts.",
+              "type": "number",
+              "minimum": 0,
+              "default": 30,
+              "required": false
             }
           }
         }

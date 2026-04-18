@@ -4,24 +4,23 @@ import {
   type CharacteristicGetCallback,
   type CharacteristicSetCallback,
   type CharacteristicValue,
-  type Logging,
   type PlatformAccessory,
   type Service,
 } from 'homebridge';
 import { WLEDConfig } from './types';
-import { getPresetLabel, PresetDefinition } from './utils/presetUtils';
+import { getPresetLabel, loadPresets, PresetDefinition } from './utils/presetUtils';
 import { WLEDState, WLEDWebSocket, type WLEDResponse } from './utils/wsUtils';
 import { type WLEDPlatform } from './wled-platform';
+import { getVersion } from './utils/versionUtil';
+import { Logger } from './logger';
 
 export class WLED {
-  private readonly log: Logging;
+  private readonly log: Logger;
 
   private readonly hosts: string[];
   private readonly multipleHosts: boolean;
 
-  private readonly services: Record<number, Service> = {};
-
-  private readonly debug: boolean;
+  private services: Record<number, Service> = {};
 
   /*  WEBSOCKET CONNECTIONS */
   private readonly websockets: Map<string, WLEDWebSocket> = new Map();
@@ -30,15 +29,13 @@ export class WLED {
 
   private readonly state = { on: false, brightness: -1, preset: -1 };
 
-  /*  END LOCAL CACHING VARIABLES */
+  private presets: Record<number, PresetDefinition> = {};
 
   constructor(
     private readonly platform: WLEDPlatform,
     private readonly accessory: PlatformAccessory<WLEDConfig>,
-    private readonly presets: Record<number, PresetDefinition>,
   ) {
-    this.log = platform.log;
-    this.debug = accessory.context.log ?? false;
+    this.log = new Logger(platform.log, accessory.context.log ?? false, accessory.displayName);
 
     if (accessory.context.host instanceof Array) {
       this.hosts = accessory.context.host;
@@ -75,19 +72,13 @@ export class WLED {
         this.log.error(`Failed to fetch WLED version from ${this.hosts[0]}: ${errorMessage}`);
       });
 
-    this.services = Object.fromEntries(
-      Object.entries(presets).map(([presetId, preset]) => [
-        presetId,
-        this.registerPresetServices(parseInt(presetId, 10), preset),
-      ]),
-    );
-    this.accessory.services
-      .filter((cached) => cached.UUID !== this.platform.Service.AccessoryInformation.UUID)
-      .filter((cached) => !Object.values(this.services).some((service) => service.subtype === cached.subtype))
-      .forEach((orphaned) => {
-        this.log.info('Removing orphaned service from cache:', orphaned.displayName);
-        this.accessory.removeService(orphaned);
-      });
+    this.fetchAndRegisterPresets();
+    if (accessory.context.presetUpdateCheckIntervalSeconds !== 0) {
+      setInterval(
+        () => this.fetchAndRegisterPresets(),
+        (accessory.context.presetUpdateCheckIntervalSeconds ?? 30) * 1000,
+      );
+    }
 
     this.accessory.on('identify', () => this.identify());
 
@@ -107,6 +98,32 @@ export class WLED {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     this.turnOffWLED();
+  }
+
+  async fetchAndRegisterPresets(): Promise<void> {
+    try {
+      this.presets = await loadPresets(this.hosts[0]);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.log.error(`Failed to load presets for ${this.hosts[0]}: ${errorMessage}`);
+      return;
+    }
+
+    const newServices = Object.fromEntries(
+      Object.entries(this.presets).map(([presetId, preset]) => [
+        presetId,
+        this.registerPresetService(parseInt(presetId, 10), preset),
+      ]),
+    );
+    this.services = newServices;
+
+    this.accessory.services
+      .filter((cached) => cached.UUID !== this.platform.Service.AccessoryInformation.UUID)
+      .filter((cached) => !Object.values(this.services).some((service) => service.subtype === cached.subtype))
+      .forEach((orphaned) => {
+        this.log.info('Removing orphaned service from cache:', orphaned.displayName);
+        this.accessory.removeService(orphaned);
+      });
   }
 
   private connectWebSockets(): void {
@@ -190,9 +207,7 @@ export class WLED {
 
   private handleStateUpdate({ state }: WLEDResponse, sourceHost: string): void {
     try {
-      if (this.debug) {
-        this.log.info(`Received state update from ${sourceHost}: on=${state.on}, bri=${state.bri}, ps=${state.ps}`);
-      }
+      this.log.info(`Received state update from ${sourceHost}: on=${state.on}, bri=${state.bri}, ps=${state.ps}`);
 
       // Update cached values
       if (state.on !== undefined) {
@@ -239,9 +254,7 @@ export class WLED {
   }
 
   private sendToAllHosts(data: WLEDState): void {
-    if (this.debug) {
-      this.log(`Sending data to all hosts: ${JSON.stringify(data)}`);
-    }
+    this.log.info(`Sending data to all hosts: ${JSON.stringify(data)}`);
 
     try {
       this.websockets.forEach((ws, host) => {
@@ -262,8 +275,12 @@ export class WLED {
     }
   }
 
-  registerPresetServices(presetId: number, preset: PresetDefinition): Service {
+  registerPresetService(presetId: number, preset: PresetDefinition): Service {
     const identifier = `Preset ID=${presetId} Label=${getPresetLabel(presetId, preset)}`;
+
+    if (this.services[presetId]) {
+      return this.services[presetId];
+    }
 
     const service =
       this.accessory.getServiceById(this.platform.Service.Lightbulb, identifier) ??
@@ -279,20 +296,17 @@ export class WLED {
       .getCharacteristic(this.platform.Characteristic.On)
       .onGet(() => {
         const result = this.state.preset === presetId && this.state.on;
-        if (this.debug) {
-          this.log(`Current state of preset ${presetId}'s ON was requested and returned: ${result}`);
-        }
+
+        this.log.info(`Current state of preset ${presetId}'s ON was requested and returned: ${result}`);
 
         return result;
       })
       .onSet((value: CharacteristicValue) => {
         const desiredValue = value as boolean;
 
-        if (this.debug) {
-          this.log(
-            `Received request to set preset ${presetId} to ${desiredValue ? 'ON' : 'OFF'}; current state is ${this.state.on ? 'ON' : 'OFF'}`,
-          );
-        }
+        this.log.info(
+          `Received request to set preset ${presetId} to ${desiredValue ? 'ON' : 'OFF'}; current state is ${this.state.on ? 'ON' : 'OFF'}`,
+        );
 
         // if requesting to turn preset off that is already off, do nothing
         if (desiredValue === false && (this.state.on === false || this.state.preset !== presetId)) {
@@ -308,16 +322,14 @@ export class WLED {
         // if turning on a preset that is currently off
         if (desiredValue && !this.state.on) {
           this.turnOnWLEDPreset(presetId);
-          if (this.debug) {
-            this.log(`Light was turned on and set to preset ${presetId}!`);
-          }
+
+          this.log.info(`Light was turned on and set to preset ${presetId}!`);
         }
         // if turning off a preset that is currently on
         else if (!desiredValue && this.state.on && this.state.preset === presetId) {
           this.turnOffWLED();
-          if (this.debug) {
-            this.log('Light was turned off!');
-          }
+
+          this.log.info('Light was turned off!');
         }
 
         this.state.on = desiredValue;
@@ -327,9 +339,7 @@ export class WLED {
     service
       .getCharacteristic(this.platform.Characteristic.Brightness)
       .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
-        if (this.debug) {
-          this.log(`Current preset ${presetId}'s brightness: ${this.state.brightness}`);
-        }
+        this.log.info(`Current preset ${presetId}'s brightness: ${this.state.brightness}`);
 
         callback(undefined, this.currentBrightnessToPercent());
       })
@@ -337,9 +347,7 @@ export class WLED {
         this.state.brightness = Math.round((255 / 100) * (value as number));
         this.wsSetBrightness(presetId);
 
-        if (this.debug) {
-          this.log(`Set preset ${presetId}'s brightness to ${value}% (${this.state.brightness})`);
-        }
+        this.log.info(`Set preset ${presetId}'s brightness to ${value}% (${this.state.brightness})`);
 
         callback();
         this.updateLight();
@@ -383,15 +391,13 @@ export class WLED {
   }
 
   updateLight(): void {
-    this.log(`Current state: on=${this.state.on}, bri=${this.state.brightness}, preset=${this.state.preset}`);
+    this.log.info(`Current state: on=${this.state.on}, bri=${this.state.brightness}, preset=${this.state.preset}`);
     for (const [presetId, service] of Object.entries(this.services)) {
       const isActivePreset = this.state.preset === parseInt(presetId, 10);
       if (isActivePreset && this.state.on) {
-        if (this.debug) {
-          this.log(
-            `Updating HomeKit state: Light is ON for preset ${presetId} with brightness ${this.state.brightness}`,
-          );
-        }
+        this.log.info(
+          `Updating HomeKit state: Light is ON for preset ${presetId} with brightness ${this.state.brightness}`,
+        );
 
         service.updateCharacteristic(this.platform.Characteristic.On, true);
         service.updateCharacteristic(
@@ -399,9 +405,7 @@ export class WLED {
           isActivePreset ? this.currentBrightnessToPercent() : 0,
         );
       } else {
-        if (this.debug) {
-          this.log(`Updating HomeKit state: Light is OFF for preset ${presetId}`);
-        }
+        this.log.info(`Updating HomeKit state: Light is OFF for preset ${presetId}`);
 
         service.updateCharacteristic(this.platform.Characteristic.On, false);
         service.updateCharacteristic(this.platform.Characteristic.Brightness, 0);
