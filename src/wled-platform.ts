@@ -8,10 +8,10 @@ import {
   type PlatformConfig,
   Service,
 } from 'homebridge';
-import { WLED } from './wled-accessory';
-import { loadPresets } from './utils/presetUtils';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { WLEDConfig } from './types';
+import { getLatestWledVersion } from './utils/infoUtil';
+import { WLED } from './wled-accessory';
 
 export class WLEDPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service;
@@ -82,6 +82,9 @@ export class WLEDPlatform implements DynamicPlatformPlugin {
     const discoveredCacheUuids: string[] = [];
     const toRegister: PlatformAccessory[] = [];
 
+    // do once so it can be shared by all accessories at the start
+    const latestWledVersion = await getLatestWledVersion(this.log.error);
+
     for (const wled of this.config.wleds) {
       if (!wled || !wled.host) {
         this.log.warn('Skipping WLED configuration: No host or IP address configured.');
@@ -102,7 +105,7 @@ export class WLEDPlatform implements DynamicPlatformPlugin {
         toRegister.push(accessory);
       }
 
-      new WLED(this, accessory);
+      new WLED(this, accessory, latestWledVersion);
     }
 
     toRegister.forEach((a) => this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [a]));

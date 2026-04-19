@@ -7,12 +7,13 @@ import {
   type PlatformAccessory,
   type Service,
 } from 'homebridge';
+import semver from 'semver';
+import { Logger } from './logger';
 import { WLEDConfig } from './types';
+import { getInfo, getLatestWledVersion } from './utils/infoUtil';
 import { getPresetLabel, loadPresets, PresetDefinition } from './utils/presetUtils';
 import { WLEDState, WLEDWebSocket, type WLEDResponse } from './utils/wsUtils';
 import { type WLEDPlatform } from './wled-platform';
-import { getVersion } from './utils/versionUtil';
-import { Logger } from './logger';
 
 export class WLED {
   private readonly log: Logger;
@@ -20,6 +21,7 @@ export class WLED {
   private readonly hosts: string[];
   private readonly multipleHosts: boolean;
 
+  private readonly accessoryInfoService: Service;
   private services: Record<number, Service> = {};
 
   /*  WEBSOCKET CONNECTIONS */
@@ -34,6 +36,7 @@ export class WLED {
   constructor(
     private readonly platform: WLEDPlatform,
     private readonly accessory: PlatformAccessory<WLEDConfig>,
+    latestWledVersion?: string,
   ) {
     this.log = new Logger(platform.log, accessory.context.log ?? false, accessory.displayName);
 
@@ -56,16 +59,18 @@ export class WLED {
     );
 
     this.accessory.category = Categories.LIGHTBULB;
-    const accessoryInfo =
+
+    this.accessoryInfoService =
       this.accessory.getService(this.platform.Service.AccessoryInformation) ??
       this.accessory.addService(this.platform.Service.AccessoryInformation);
-    accessoryInfo.setCharacteristic(this.platform.Characteristic.Manufacturer, 'WLED');
-    accessoryInfo.setCharacteristic(this.platform.Characteristic.Model, 'WLED Light Strip');
-    accessoryInfo.setCharacteristic(this.platform.Characteristic.SerialNumber, this.hosts.join(','));
-    getVersion(this.hosts[0])
-      .then((version) => {
-        this.log.info(`Fetched WLED version ${version} from ${this.hosts[0]}`);
-        accessoryInfo.setCharacteristic(this.platform.Characteristic.FirmwareRevision, version);
+    this.accessoryInfoService.setCharacteristic(this.platform.Characteristic.SerialNumber, this.hosts.join(','));
+
+    getInfo(this.hosts[0], this.log.error)
+      .then((info) => {
+        this.log.info(`Fetched WLED information ${JSON.stringify(info)} from ${this.hosts[0]}`);
+        this.accessoryInfoService.setCharacteristic(this.platform.Characteristic.FirmwareRevision, info.ver);
+        this.accessoryInfoService.setCharacteristic(this.platform.Characteristic.Manufacturer, info.brand);
+        this.accessoryInfoService.setCharacteristic(this.platform.Characteristic.Model, info.product);
       })
       .catch((e) => {
         const errorMessage = e instanceof Error ? e.message : String(e);
@@ -78,6 +83,16 @@ export class WLED {
         () => this.fetchAndRegisterPresets(),
         (accessory.context.presetUpdateCheckIntervalSeconds ?? 30) * 1000,
       );
+    }
+
+    if (accessory.context.softwareUpdateCheckIntervalSeconds !== 0) {
+      this.checkSoftwareUpdateStatus(latestWledVersion);
+      const interval = (accessory.context.softwareUpdateCheckIntervalSeconds ?? 21600) * 1000;
+      // random first check to prevent multiple accessories from checking for updates at the same time
+      setTimeout(() => {
+        this.checkSoftwareUpdateStatus();
+        setInterval(() => this.checkSoftwareUpdateStatus(), interval);
+      }, Math.random() * interval);
     }
 
     this.accessory.on('identify', () => this.identify());
@@ -181,6 +196,7 @@ export class WLED {
 
               ws.setOnConnect(() => {
                 this.log.info(`WebSocket connected to ${host}`);
+                this.checkSoftwareUpdateStatus();
               });
 
               ws.setOnDisconnect(() => {
@@ -305,7 +321,7 @@ export class WLED {
         const desiredValue = value as boolean;
 
         this.log.info(
-          `Received request to set preset ${presetId} to ${desiredValue ? 'ON' : 'OFF'}; current state is ${this.state.on ? 'ON' : 'OFF'}`,
+          `Received request to set preset ${presetId} to ${desiredValue ? 'ON' : 'OFF'}; current state is ${this.state.on ? 'ON' : 'OFF'} and ${this.state.preset === presetId ? `preset ${presetId}` : `preset ${this.state.preset}`}`,
         );
 
         // if requesting to turn preset off that is already off, do nothing
@@ -320,13 +336,13 @@ export class WLED {
         }
 
         // if turning on a preset that is currently off
-        if (desiredValue && !this.state.on) {
+        if (desiredValue) {
           this.turnOnWLEDPreset(presetId);
 
           this.log.info(`Light was turned on and set to preset ${presetId}!`);
         }
         // if turning off a preset that is currently on
-        else if (!desiredValue && this.state.on && this.state.preset === presetId) {
+        else {
           this.turnOffWLED();
 
           this.log.info('Light was turned off!');
@@ -394,7 +410,7 @@ export class WLED {
     this.log.info(`Current state: on=${this.state.on}, bri=${this.state.brightness}, preset=${this.state.preset}`);
     for (const [presetId, service] of Object.entries(this.services)) {
       const isActivePreset = this.state.preset === parseInt(presetId, 10);
-      if (isActivePreset && this.state.on) {
+      if (isActivePreset && this.state.on && this.state.brightness > 0) {
         this.log.info(
           `Updating HomeKit state: Light is ON for preset ${presetId} with brightness ${this.state.brightness}`,
         );
@@ -427,5 +443,34 @@ export class WLED {
     });
     this.websockets.clear();
     this.primaryWebSocket = null;
+  }
+
+  async checkSoftwareUpdateStatus(latestWledVersion?: string) {
+    if (!latestWledVersion) {
+      latestWledVersion = await getLatestWledVersion(this.log.error);
+    }
+    if (!latestWledVersion) {
+      this.log.error('Could not fetch latest WLED version for update check');
+      return;
+    }
+
+    const currentVersions = await Promise.all(
+      this.hosts.map((host) => getInfo(host, this.log.error).then((info) => info.ver)),
+    );
+
+    for (let i = 0; i < this.hosts.length; i++) {
+      const host = this.hosts[i];
+      const currentVersion = currentVersions[i];
+
+      if (semver.lt(currentVersion, latestWledVersion)) {
+        this.log.warn(
+          `A new WLED version ${latestWledVersion} is available for host ${this.hosts[i]} (currently running version ${currentVersion}).`,
+        );
+      } else {
+        this.log.info(`WLED version ${currentVersion} for host ${host} is up to date (latest=${latestWledVersion})!`);
+      }
+    }
+
+    // TODO: report this as a proper FirmwareUpdate accessory, however, I cannot determine the proper characteristic values...
   }
 }

@@ -42,6 +42,14 @@
               "minimum": 0,
               "default": 30,
               "required": false
+            },
+            "softwareUpdateCheckIntervalSeconds": {
+              "title": "Software update check interval (seconds)",
+              "description": "How many seconds the plugin should wait between checking for software updates on the WLED device. Set to 0 to disable update checks. Default 6 hours.",
+              "type": "number",
+              "minimum": 0,
+              "default": 21600,
+              "required": false
             }
           }
         }

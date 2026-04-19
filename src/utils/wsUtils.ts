@@ -47,7 +47,7 @@ export class WLEDWebSocket {
 
   private reconnectAttempts = 0;
 
-  private maxReconnectAttempts = 10;
+  private maxReconnectAttempts = 100;
 
   private reconnectDelay = 3000;
 

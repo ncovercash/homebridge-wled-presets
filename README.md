@@ -27,6 +27,7 @@ However, if the controls are changed from a preset to a custom setting, **the pr
 - **WebSocket Support**: Real-time communication with WLED devices via WebSocket for instant updates
 - **Homebridge v2 Compatible**: Works with both Homebridge v1.8+ and v2.0+
 - **Multiple Host Support**: Control multiple WLED devices with a single accessory
+- **Software Update Notifications**: Get notified in logs when a new WLED version is available (currently in logs only)
 
 ### ⚙️ Installation / NPM Package
 
