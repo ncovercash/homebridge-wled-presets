@@ -1,5 +1,10 @@
 # Changelog
 
+### [1.1.0] - 2026-04-18
+
+- Automatically check and notify (via logs) when a new WLED version is available
+- Refresh presets while running to ensure new ones are picked up/old ones are removed via polling
+
 ### [1.0.4] - 2026-04-18
 
 - Improve handling of mass on/off requests to prevent conflicts
