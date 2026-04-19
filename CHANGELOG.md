@@ -1,5 +1,9 @@
 # Changelog
 
+### [1.1.1] - 2026-04-18
+
+- Fix schema for plugin verification
+
 ### [1.1.0] - 2026-04-18
 
 - Automatically check and notify (via logs) when a new WLED version is available
