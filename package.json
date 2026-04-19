@@ -1,6 +1,6 @@
 {
   "name": "@ncovercash/homebridge-wled-presets",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "An accessory plugin for homebridge to support WLED strip presets",
   "homepage": "https://github.com/ncovercash/homebridge-wled-presets/",
   "main": "dist/index.js",

@@ -55,8 +55,8 @@
           },
           "required": ["name", "host"]
         }
-      },
-      "required": ["name", "wleds"]
-    }
+      }
+    },
+    "required": ["name", "wleds"]
   }
 }

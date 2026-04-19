@@ -1,5 +1,9 @@
 # Changelog
 
+### [1.1.2] - 2026-04-18
+
+- Fix schema, again
+
 ### [1.1.1] - 2026-04-18
 
 - Fix schema for plugin verification
