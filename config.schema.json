@@ -7,6 +7,12 @@
   "schema": {
     "type": "object",
     "properties": {
+      "name": {
+        "type": "string",
+        "title": "Platform name",
+        "description": "Name for this platform",
+        "default": "WLED Presets"
+      },
       "wleds": {
         "type": "array",
         "title": "WLED instances",
@@ -18,42 +24,39 @@
               "title": "WLED name",
               "description": "Name for this WLED instance, to be displayed in HomeKit.",
               "type": "string",
-              "placeholder": "Enter WLED name",
-              "required": true
+              "placeholder": "Enter WLED name"
             },
             "host": {
               "title": "WLED IP address(es)",
               "description": "IP address for this WLED instance, or a comma separated list of multiple IP addresses.",
               "type": "string",
               "format": "ipv4",
-              "placeholder": "Enter WLED IP address(es)",
-              "required": true
+              "placeholder": "Enter WLED IP address(es)"
             },
             "log": {
               "title": "Logging",
               "description": "Enable Logging/Debugging option",
-              "type": "boolean",
-              "required": false
+              "type": "boolean"
             },
             "presetUpdateCheckIntervalSeconds": {
               "title": "Preset update check interval (seconds)",
               "description": "How many seconds the plugin should wait between checking for preset updates on the WLED device. Set to 0 to disable periodic checks and only check for updates when the plugin starts.",
               "type": "number",
               "minimum": 0,
-              "default": 30,
-              "required": false
+              "default": 30
             },
             "softwareUpdateCheckIntervalSeconds": {
               "title": "Software update check interval (seconds)",
               "description": "How many seconds the plugin should wait between checking for software updates on the WLED device. Set to 0 to disable update checks. Default 6 hours.",
               "type": "number",
               "minimum": 0,
-              "default": 21600,
-              "required": false
+              "default": 21600
             }
-          }
+          },
+          "required": ["name", "host"]
         }
-      }
+      },
+      "required": ["name", "wleds"]
     }
   }
 }

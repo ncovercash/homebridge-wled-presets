@@ -2,6 +2,7 @@
   "name": "@ncovercash/homebridge-wled-presets",
   "version": "1.1.0",
   "description": "An accessory plugin for homebridge to support WLED strip presets",
+  "homepage": "https://github.com/ncovercash/homebridge-wled-presets/",
   "main": "dist/index.js",
   "scripts": {
     "clean": "rimraf ./dist",
@@ -32,7 +33,7 @@
     "url": "git://github.com/ncovercash/homebridge-wled-presets.git"
   },
   "bugs": {
-    "url": "http://github.com/ncovercash/homebridge-wled-presets/issues"
+    "url": "https://github.com/ncovercash/homebridge-wled-presets/issues"
   },
   "dependencies": {
     "@homebridge/plugin-ui-utils": "^0.0.19",
