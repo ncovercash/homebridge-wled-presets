@@ -462,7 +462,7 @@ export class WLED {
       const host = this.hosts[i];
       const currentVersion = currentVersions[i];
 
-      if (semver.lt(currentVersion, latestWledVersion)) {
+      if (semver.lt(semver.coerce(currentVersion) ?? latestWledVersion, latestWledVersion)) {
         this.log.warn(
           `A new WLED version ${latestWledVersion} is available for host ${this.hosts[i]} (currently running version ${currentVersion}).`,
         );
