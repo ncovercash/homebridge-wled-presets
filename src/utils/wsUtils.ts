@@ -47,8 +47,6 @@ export class WLEDWebSocket {
 
   private reconnectAttempts = 0;
 
-  private maxReconnectAttempts = 100;
-
   private reconnectDelay = 3000;
 
   private isConnected = false;
@@ -141,10 +139,9 @@ export class WLEDWebSocket {
   }
 
   private scheduleReconnect(): void {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      return;
+    if (this.onError) {
+      this.onError(new Error(`Websocket has been lost for ${(this.reconnectAttempts * this.reconnectDelay / 1000)} seconds`));
     }
-
     this.reconnectAttempts++;
     this.reconnectInterval = setTimeout(() => {
       this.connect().catch(() => {

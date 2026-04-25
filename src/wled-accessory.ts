@@ -447,7 +447,7 @@ export class WLED {
 
   async checkSoftwareUpdateStatus(latestWledVersion?: string) {
     if (!latestWledVersion) {
-      latestWledVersion = await getLatestWledVersion(this.log.error);
+      latestWledVersion = await getLatestWledVersion((s) => this.log.error(s));
     }
     if (!latestWledVersion) {
       this.log.error('Could not fetch latest WLED version for update check');
@@ -455,7 +455,7 @@ export class WLED {
     }
 
     const currentVersions = await Promise.all(
-      this.hosts.map((host) => getInfo(host, this.log.error).then((info) => info.ver)),
+      this.hosts.map((host) => getInfo(host, (s) => this.log.error(s)).then((info) => info.ver)),
     );
 
     for (let i = 0; i < this.hosts.length; i++) {

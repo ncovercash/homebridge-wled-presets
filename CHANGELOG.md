@@ -1,5 +1,10 @@
 # Changelog
 
+### [1.1.3] - 2026-04-24
+
+- Continuously try to reconnect to websockets if the connection is lost, instead of permanently giving up
+- Fix error on launch for invalid IPs
+
 ### [1.1.2] - 2026-04-18
 
 - Fix schema, again

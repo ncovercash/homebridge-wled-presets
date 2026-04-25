@@ -21,7 +21,7 @@ export class WLEDPlatform implements DynamicPlatformPlugin {
 
   constructor(
     public readonly log: Logging,
-    public readonly config: PlatformConfig,
+    public readonly config: PlatformConfig & { wleds: WLEDConfig[] },
     public readonly api: API,
   ) {
     this.Service = api.hap.Service;
